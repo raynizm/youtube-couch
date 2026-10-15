@@ -17,6 +17,7 @@ function isShortsContainer(node: Node): boolean {
 export function stripShorts<T extends Node>(nodes: T[]): T[] {
   const out: T[] = []
   for (const node of nodes) {
+    if (!node || typeof node !== 'object') continue
     if (isShortItem(node) || isShortsContainer(node)) continue
     if (Array.isArray(node.items)) {
       out.push({ ...node, items: stripShorts(node.items as Node[]) })

@@ -14,3 +14,12 @@ describe('stripAds', () => {
     expect(stripAds(feed)).toEqual([{ type: 'Video', id: 'v' }])
   })
 })
+
+describe('stripAds null safety', () => {
+  it('skips null nodes, including nested', () => {
+    expect(stripAds([null, { type: 'Video' }, { type: 'Row', items: [undefined, { type: 'AdSlot' }, { type: 'Video' }] }] as any)).toEqual([
+      { type: 'Video' },
+      { type: 'Row', items: [{ type: 'Video' }] },
+    ])
+  })
+})

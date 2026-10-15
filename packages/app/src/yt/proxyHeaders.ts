@@ -46,3 +46,21 @@ export function fromProxyHeaders(incoming: Record<string, unknown>): Record<stri
   delete out['x-referer']
   return out
 }
+
+/**
+ * YouTube answers 400 to any request that carries the OAuth bearer together with a non-TV client
+ * context, so the Authorization header is kept only when the JSON body's client is TVHTML5.
+ * Non-JSON or empty bodies are treated as non-TV. Header values are never logged.
+ */
+export function scopeBearer(headers: Headers, body?: ArrayBuffer | string | null): Headers {
+  if (!headers.has('authorization')) return headers
+  let tv = false
+  try {
+    const raw = typeof body === 'string' ? body : body ? new TextDecoder().decode(body) : ''
+    tv = JSON.parse(raw)?.context?.client?.clientName === 'TVHTML5'
+  } catch {
+    /* not JSON: strip */
+  }
+  if (!tv) headers.delete('authorization')
+  return headers
+}

@@ -14,6 +14,7 @@ export function stripPlayerAds<T extends Record<string, unknown>>(res: T): T {
 export function stripAds<T extends Node>(nodes: T[]): T[] {
   const out: T[] = []
   for (const node of nodes) {
+    if (!node || typeof node !== 'object') continue
     if (node.type && AD_TYPES.has(node.type)) continue
     out.push(Array.isArray(node.items) ? { ...node, items: stripAds(node.items as Node[]) } : node)
   }

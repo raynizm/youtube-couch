@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromProxyHeaders, toProxyHeaders } from './proxyHeaders'
+import { fromProxyHeaders, scopeBearer, toProxyHeaders } from './proxyHeaders'
 
 describe('toProxyHeaders', () => {
   it('reads referer from a plain object', () => {
@@ -48,5 +48,33 @@ describe('fromProxyHeaders', () => {
   })
   it('has no referer without x-referer', () => {
     expect(fromProxyHeaders({ referer: 'http://localhost/' })).toEqual({})
+  })
+})
+
+describe('scopeBearer', () => {
+  const enc = (o: unknown) => new TextEncoder().encode(JSON.stringify(o)).buffer as ArrayBuffer
+  const hdrs = () => new Headers({ authorization: 'Bearer secret', 'content-type': 'application/json' })
+
+  it('keeps the bearer for a TVHTML5 body', () => {
+    expect(scopeBearer(hdrs(), enc({ context: { client: { clientName: 'TVHTML5' } } })).get('authorization')).toBe('Bearer secret')
+  })
+
+  it('strips the bearer for other clients', () => {
+    for (const clientName of ['WEB', 'MWEB', 'ANDROID', 'IOS', 'TVHTML5_SIMPLY']) {
+      expect(scopeBearer(hdrs(), enc({ context: { client: { clientName } } })).has('authorization')).toBe(false)
+    }
+  })
+
+  it('strips on non-JSON, empty or missing bodies, and keeps other headers', () => {
+    for (const body of [new TextEncoder().encode('not json').buffer as ArrayBuffer, new ArrayBuffer(0), undefined, enc(null), enc({})]) {
+      const h = scopeBearer(hdrs(), body)
+      expect(h.has('authorization')).toBe(false)
+      expect(h.get('content-type')).toBe('application/json')
+    }
+  })
+
+  it('accepts string bodies and leaves header-less requests alone', () => {
+    expect(scopeBearer(hdrs(), '{"context":{"client":{"clientName":"TVHTML5"}}}').has('authorization')).toBe(true)
+    expect(scopeBearer(new Headers(), undefined).has('authorization')).toBe(false)
   })
 })

@@ -30,3 +30,12 @@ describe('stripShorts', () => {
     ])
   })
 })
+
+describe('stripShorts null safety', () => {
+  it('skips null nodes, including nested', () => {
+    expect(stripShorts([null, { type: 'Video' }, { type: 'Row', items: [undefined, { type: 'ReelItem' }, { type: 'Video' }] }] as any)).toEqual([
+      { type: 'Video' },
+      { type: 'Row', items: [{ type: 'Video' }] },
+    ])
+  })
+})
