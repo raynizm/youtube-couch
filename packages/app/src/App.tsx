@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useSpatialNav } from './nav/useSpatialNav'
 import { Player } from './player/Player'
+import { AccountMenu } from './ui/AccountMenu'
 import { Details } from './ui/Details'
 import { Home } from './ui/Home'
 import { History, Playlists, Subscriptions } from './ui/Library'
@@ -22,6 +23,7 @@ export default function App() {
   // Stack of detail pages: opening a related video pushes, Back pops.
   const [stack, setStack] = useState<Item[]>([])
   const [signingIn, setSigningIn] = useState(false)
+  const [menu, setMenu] = useState(false)
   const auth = useAuth()
   const details = stack[stack.length - 1]
   useSpatialNav(!playing)
@@ -32,7 +34,13 @@ export default function App() {
     setStack([])
     setTab(t)
   }, [])
-  const onAccount = useCallback(() => (auth.signedIn ? void signOut() : setSigningIn(true)), [auth.signedIn])
+  const onAccount = useCallback(() => (auth.signedIn ? setMenu(true) : setSigningIn(true)), [auth.signedIn])
+  const closeMenu = useCallback(() => setMenu(false), [])
+  const confirmSignOut = useCallback(() => {
+    void signOut()
+    setMenu(false)
+  }, [])
+  const modal = signingIn || menu
   const closeSignIn = useCallback(() => setSigningIn(false), [])
   const back = useCallback(() => setStack((s) => s.slice(0, -1)), [])
 
@@ -42,12 +50,13 @@ export default function App() {
       <main>
         {tab === 'home' && <Home onOpen={open} onPlay={play} />}
         {tab === 'subscriptions' && <Subscriptions onOpen={open} />}
-        {tab === 'playlists' && <Playlists onOpen={open} active={!details && !playing && !signingIn} />}
+        {tab === 'playlists' && <Playlists onOpen={open} active={!details && !playing && !modal} />}
         {tab === 'history' && <History onOpen={open} />}
         {tab === 'search' && <Search onOpen={open} />}
       </main>
-      {details && <Details item={details} active={!playing && !signingIn} onPlay={play} onOpen={open} onClose={back} onTab={goTab} />}
+      {details && <Details item={details} active={!playing && !modal} onPlay={play} onOpen={open} onClose={back} onTab={goTab} />}
       {signingIn && <SignIn onClose={closeSignIn} />}
+      {menu && auth.signedIn && <AccountMenu name={auth.name} onSignOut={confirmSignOut} onClose={closeMenu} />}
       {playing && <Player item={playing} onClose={close} />}
     </div>
   )
