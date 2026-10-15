@@ -161,6 +161,24 @@ export function toItem(n: Raw): Item | undefined {
       thumb: n.content_image?.image?.[0]?.url ?? `https://i.ytimg.com/vi/${n.content_id}/hqdefault.jpg`,
     }
   }
+  if ((n.type === 'Playlist' || n.type === 'GridPlaylist') && n.id) {
+    return {
+      id: n.id,
+      kind: 'playlist',
+      title: text(n.title) ?? '',
+      thumb: n.thumbnails?.[0]?.url ?? '',
+    }
+  }
+  if ((n.type === 'PlaylistVideo' || n.type === 'GridVideo') && n.id) {
+    return {
+      id: n.id,
+      kind: 'video',
+      title: text(n.title) ?? '',
+      thumb: n.thumbnails?.[0]?.url ?? `https://i.ytimg.com/vi/${n.id}/hqdefault.jpg`,
+      author: n.author?.name,
+      meta: [n.video_info?.text, n.duration?.text].filter(Boolean).join(' · '),
+    }
+  }
   return undefined
 }
 
@@ -304,4 +322,52 @@ export async function fetchRange(url: string, start: number, end: number): Promi
   const res = await fetch(proxied(url), { headers: { Range: `bytes=${start}-${end}` } })
   if (!res.ok) throw new Error(`range ${res.status}`)
   return res.arrayBuffer()
+}
+
+const asArray = (v: unknown): Raw[] => (Array.isArray(v) ? (v as Raw[]) : [])
+/** Home-feed grid entries wrap the real node in `.content`. */
+const unwrap = (n: Raw): Raw => (n && n.content && typeof n.content === 'object' && !Array.isArray(n.content) ? n.content : n)
+
+/** Personalised home: one row per shelf; loose grid items collect into a single "Recommended" row. */
+export async function accountHome(): Promise<Row[]> {
+  const yt = await getSession()
+  const feed = (await yt.getHomeFeed()) as unknown as Raw
+  const rows: Row[] = []
+  const loose: Raw[] = []
+  for (const entry of asArray(feed?.contents?.contents)) {
+    const node = unwrap(entry)
+    if (Array.isArray(node.contents) && node.title) {
+      const items = toVideos(node.contents.map(unwrap))
+      if (items.length) rows.push({ title: text(node.title) ?? '', items })
+    } else {
+      loose.push(node)
+    }
+  }
+  const items = toVideos(loose)
+  if (items.length) rows.push({ title: 'Recommended', items })
+  return rows
+}
+
+export async function subscriptionsFeed(): Promise<Item[]> {
+  const yt = await getSession()
+  const feed = (await yt.getSubscriptionsFeed()) as unknown as Raw
+  return toVideos(asArray(feed?.videos))
+}
+
+export async function accountPlaylists(): Promise<Item[]> {
+  const yt = await getSession()
+  const feed = (await yt.getPlaylists()) as unknown as Raw
+  return flatten(asArray(feed?.playlists)).filter((i) => i.kind === 'playlist')
+}
+
+export async function accountHistory(): Promise<Item[]> {
+  const yt = await getSession()
+  const feed = (await yt.getHistory()) as unknown as Raw
+  return toVideos(asArray(feed?.sections).flatMap((s) => asArray(s?.contents)))
+}
+
+export async function getPlaylistVideos(id: string): Promise<Item[]> {
+  const yt = await getSession()
+  const pl = (await yt.getPlaylist(id)) as unknown as Raw
+  return toVideos(asArray(pl?.videos))
 }

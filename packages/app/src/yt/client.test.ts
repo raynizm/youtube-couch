@@ -3,7 +3,11 @@ import { toDetails } from './client'
 
 type Handler = (arg?: any) => void
 const h = vi.hoisted(() => {
-  const state: { session: any; info: any } = { session: undefined, info: undefined }
+  const state: { session: any; info: any; feeds: Record<string, (arg?: any) => any> } = {
+    session: undefined,
+    info: undefined,
+    feeds: {},
+  }
   return state
 })
 
@@ -37,6 +41,11 @@ vi.mock('youtubei.js', () => ({
       return {
         session: h.session,
         account: { getInfo: async () => h.info() },
+        getHomeFeed: async () => h.feeds.home(),
+        getSubscriptionsFeed: async () => h.feeds.subs(),
+        getPlaylists: async () => h.feeds.playlists(),
+        getHistory: async () => h.feeds.history(),
+        getPlaylist: async (id: string) => h.feeds.playlist(id),
       }
     }),
   },
@@ -227,6 +236,98 @@ describe('sign-in', () => {
     expect(auth.loadCredentials()).toBeUndefined()
     await client.getChannelVideos('UC1').catch(() => {})
     expect(h.session).not.toBe(cur)
+  })
+})
+
+const vid = (id: string, extra: Record<string, unknown> = {}) => ({ type: 'Video', id, title: { text: id }, ...extra })
+
+describe('account feeds', () => {
+  beforeEach(() => {
+    h.feeds = {}
+  })
+
+  it('toItem maps a Playlist node', async () => {
+    const { client } = await load()
+    expect(client.toItem({ type: 'Playlist', id: 'PL1', title: { text: 'Mix' }, thumbnails: [{ url: 't.jpg' }] })).toEqual({
+      id: 'PL1',
+      kind: 'playlist',
+      title: 'Mix',
+      thumb: 't.jpg',
+    })
+    expect(client.toItem({ type: 'GridPlaylist', id: 'PL2', title: { text: 'G' } })).toMatchObject({ id: 'PL2', kind: 'playlist' })
+  })
+
+  it('subscriptionsFeed drops shorts and ads and keeps videos', async () => {
+    const { client } = await load()
+    h.feeds.subs = () => ({
+      videos: [
+        vid('aaaaaaaaaaa'),
+        { type: 'ReelItem', id: 'short1', title: { text: 's' } },
+        { type: 'AdSlot' },
+        { type: 'Mystery' },
+        vid('bbbbbbbbbbb'),
+      ],
+    })
+    expect((await client.subscriptionsFeed()).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
+  })
+
+  it('accountHistory flattens sections and ignores unknown node types', async () => {
+    const { client } = await load()
+    h.feeds.history = () => ({
+      sections: [
+        { contents: [vid('aaaaaaaaaaa'), { type: 'Weird' }, { type: 'ReelShelf', items: [] }] },
+        { contents: [vid('bbbbbbbbbbb')] },
+        {},
+      ],
+    })
+    expect((await client.accountHistory()).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
+  })
+
+  it('accountPlaylists returns only playlist items', async () => {
+    const { client } = await load()
+    h.feeds.playlists = () => ({
+      playlists: [
+        { type: 'GridPlaylist', id: 'PL1', title: { text: 'One' } },
+        vid('aaaaaaaaaaa'),
+        { type: 'LockupView', content_id: 'PL2', content_type: 'PLAYLIST', metadata: { title: { text: 'Two' } } },
+      ],
+    })
+    expect(await client.accountPlaylists()).toMatchObject([
+      { id: 'PL1', kind: 'playlist' },
+      { id: 'PL2', kind: 'playlist' },
+    ])
+  })
+
+  it('accountHome returns [] for an empty feed instead of throwing', async () => {
+    const { client } = await load()
+    h.feeds.home = () => ({ contents: { contents: [] } })
+    expect(await client.accountHome()).toEqual([])
+    h.feeds.home = () => ({})
+    expect(await client.accountHome()).toEqual([])
+  })
+
+  it('accountHome builds a row per shelf, or one Recommended row for a flat grid', async () => {
+    const { client } = await load()
+    h.feeds.home = () => ({
+      contents: {
+        contents: [
+          { type: 'RichSection', content: { type: 'RichShelf', title: { text: 'Shelf' }, contents: [{ type: 'RichItem', content: vid('aaaaaaaaaaa') }] } },
+          { type: 'RichItem', content: vid('bbbbbbbbbbb') },
+          { type: 'RichItem', content: vid('ccccccccccc') },
+        ],
+      },
+    })
+    const rows = await client.accountHome()
+    expect(rows.map((r) => [r.title, r.items.map((i) => i.id)])).toEqual([
+      ['Shelf', ['aaaaaaaaaaa']],
+      ['Recommended', ['bbbbbbbbbbb', 'ccccccccccc']],
+    ])
+  })
+
+  it('getPlaylistVideos returns videos from the playlist', async () => {
+    const { client } = await load()
+    h.feeds.playlist = () => ({ videos: [vid('aaaaaaaaaaa'), { type: 'PlaylistVideo', id: 'bbbbbbbbbbb', title: { text: 'P' } }] })
+    expect((await client.getPlaylistVideos('PL1')).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
   })
 })
 
