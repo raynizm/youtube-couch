@@ -42,7 +42,7 @@ export default function App() {
       <main>
         {tab === 'home' && <Home onOpen={open} onPlay={play} />}
         {tab === 'subscriptions' && <Subscriptions onOpen={open} />}
-        {tab === 'playlists' && <Playlists onOpen={open} />}
+        {tab === 'playlists' && <Playlists onOpen={open} active={!details && !playing && !signingIn} />}
         {tab === 'history' && <History onOpen={open} />}
         {tab === 'search' && <Search onOpen={open} />}
       </main>
