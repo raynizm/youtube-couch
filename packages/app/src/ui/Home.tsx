@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useProgress, useWatchlist } from '../store'
-import { homeRows } from '../yt/client'
-import type { Item, Row } from '../yt/types'
+import { accountHome, homeRows } from '../yt/client'
+import type { Item } from '../yt/types'
+import { useAuth } from '../yt/auth'
 import { Hero } from './Hero'
+import { useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
 import { RowView, type CardInfo } from './RowView'
 
@@ -12,14 +14,10 @@ const fmtLeft = (secs: number) => {
 }
 
 export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i: Item) => void }) {
-  const [rows, setRows] = useState<Row[]>()
-  const [error, setError] = useState<string>()
+  const { signedIn } = useAuth()
+  const { data: rows, error } = useFeed(signedIn ? accountHome : homeRows, signedIn)
   const progress = useProgress()
   const watchlist = useWatchlist()
-
-  useEffect(() => {
-    homeRows().then(setRows, (e) => setError(String(e.message ?? e)))
-  }, [])
 
   // The cover previews whichever card is hovered or focused; short delay so scrolling past does not flicker it.
   const [focused, setFocused] = useState<Item>()

@@ -3,7 +3,7 @@ import { useSpatialNav } from './nav/useSpatialNav'
 import { Player } from './player/Player'
 import { Details } from './ui/Details'
 import { Home } from './ui/Home'
-import { History, Playlists, SignInNotice } from './ui/Library'
+import { History, Playlists, Subscriptions } from './ui/Library'
 import { Nav, type Tab } from './ui/Nav'
 import { Search } from './ui/Search'
 import { SignIn } from './ui/SignIn'
@@ -41,7 +41,7 @@ export default function App() {
       <Nav tab={tab} onTab={setTab} auth={auth} onAccount={onAccount} />
       <main>
         {tab === 'home' && <Home onOpen={open} onPlay={play} />}
-        {tab === 'subscriptions' && <SignInNotice what="subscriptions" />}
+        {tab === 'subscriptions' && <Subscriptions onOpen={open} />}
         {tab === 'playlists' && <Playlists onOpen={open} />}
         {tab === 'history' && <History onOpen={open} />}
         {tab === 'search' && <Search onOpen={open} />}
