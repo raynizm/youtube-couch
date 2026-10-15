@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import legacy from '@vitejs/plugin-legacy'
+import { fromProxyHeaders } from './src/yt/proxyHeaders.ts'
 import { defineConfig, type Plugin } from 'vite'
 
 // Dev-only CORS proxy: the browser cannot call YouTube directly. The TV wrappers
@@ -12,12 +13,7 @@ function ytProxy(): Plugin {
       res.statusCode = 400
       return res.end('bad url')
     }
-    const headers: Record<string, string> = {}
-    for (const [k, v] of Object.entries(req.headers)) {
-      if (typeof v === 'string' && !['host', 'origin', 'referer', 'cookie', 'connection', 'accept-encoding'].includes(k) && !k.startsWith('sec-')) headers[k] = v
-    }
-    if (headers['x-ua']) headers['user-agent'] = headers['x-ua']
-    delete headers['x-ua']
+    const headers = fromProxyHeaders(req.headers)
     const chunks: Buffer[] = []
     for await (const c of req) chunks.push(c)
     const body = chunks.length ? Buffer.concat(chunks) : undefined

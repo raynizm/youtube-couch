@@ -2,6 +2,7 @@ import { Innertube, type OAuth2Tokens } from 'youtubei.js'
 import { stripAds, stripPlayerAds } from '../filters/ads'
 import { stripShorts } from '../filters/shorts'
 import { clearAuth, loadCredentials, saveAccount, saveCredentials, type Account } from './auth'
+import { toProxyHeaders } from './proxyHeaders'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
 const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
@@ -9,10 +10,7 @@ const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
 // Browser fetch cannot set User-Agent or reach YouTube cross-origin, so route through the proxy.
 async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const req = new Request(input as RequestInfo, init)
-  const headers = new Headers(req.headers)
-  const ua = headers.get('user-agent')
-  if (ua) headers.set('x-ua', ua)
-  headers.delete('user-agent')
+  const headers = toProxyHeaders(init, input)
   const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.arrayBuffer()
   return fetch(proxied(req.url), { method: req.method, headers, body })
 }
