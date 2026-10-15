@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { toDetails } from './client'
 
 type Handler = (arg?: any) => void
+const { FakeOAuth2Error } = vi.hoisted(() => ({ FakeOAuth2Error: class extends Error {} }))
 const h = vi.hoisted(() => {
-  const state: { session: any; info: any; feeds: Record<string, (arg?: any) => any> } = {
+  const state: { session: any; info: any; feeds: Record<string, (arg?: any) => any>; rawFetch: () => any; signInImpl: any } = {
     session: undefined,
     info: undefined,
     feeds: {},
+    rawFetch: async () => ({}),
+    signInImpl: undefined,
   }
   return state
 })
@@ -28,19 +31,32 @@ function makeSession() {
     },
     off: (e: string, fn: Handler) => void handlers.get(e)?.delete(fn),
     emit: (e: string, a?: unknown) => [...(handlers.get(e) ?? [])].forEach((fn) => fn(a)),
-    signIn: vi.fn(async () => {}),
+    // Mirrors Session.signIn: the library's own once('auth') handler marks the session logged in.
+    signIn: vi.fn(async (tokens?: unknown) => {
+      if (h.signInImpl) return h.signInImpl(tokens)
+      s.once('auth', () => {
+        s.logged_in = true
+      })
+    }),
+    http: { fetch: async () => h.rawFetch() },
     signOut: vi.fn(async () => {}),
   }
   return s
 }
 
 vi.mock('youtubei.js', () => ({
+  Utils: { OAuth2Error: FakeOAuth2Error },
   Innertube: {
     create: vi.fn(async () => {
       h.session = makeSession()
       return {
         session: h.session,
-        account: { getInfo: async () => h.info() },
+        account: {
+          getInfo: async () => {
+            if (!h.session.logged_in) throw new Error('You must be signed in')
+            return h.info()
+          },
+        },
         getHomeFeed: async () => h.feeds.home(),
         getSubscriptionsFeed: async () => h.feeds.subs(),
         getPlaylists: async () => h.feeds.playlists(),
@@ -66,6 +82,8 @@ describe('sign-in', () => {
   beforeEach(() => {
     h.session = undefined
     h.info = goodInfo
+    h.signInImpl = undefined
+    h.rawFetch = async () => ({})
   })
 
   it('startSignIn calls onCode with user_code and verification_url from auth-pending', async () => {
@@ -87,6 +105,16 @@ describe('sign-in', () => {
     await done
     expect(auth.loadCredentials()).toEqual(creds)
     expect(auth.getAuthSnapshot()).toEqual({ signedIn: true, name: 'Ann', avatar: 'p.jpg' })
+  })
+
+  it('does not look up the account until the session is marked logged in', async () => {
+    const { client, auth } = await load()
+    h.info = () => goodInfo()
+    const { done } = client.startSignIn(() => {})
+    await ready()
+    h.session.emit('auth', { credentials: creds })
+    await done
+    expect(auth.getAuthSnapshot().name).toBe('Ann')
   })
 
   it('falls back to a generic account name when getInfo fails', async () => {
@@ -149,6 +177,43 @@ describe('sign-in', () => {
     await client.getChannelVideos('UC1').catch(() => {})
     h.session.emit('auth-error', new Error('revoked'))
     expect(auth.getAuthSnapshot().signedIn).toBe(false)
+  })
+
+  it('startup refresh failure (OAuth2Error) clears auth and resolves a signed-out session', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    h.signInImpl = async () => {
+      throw new FakeOAuth2Error('Failed to refresh access token: 400')
+    }
+    h.feeds.home = () => ({})
+    await expect(client.accountHome()).resolves.toEqual([])
+    expect(auth.loadCredentials()).toBeUndefined()
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+  })
+
+  it('startup network failure keeps credentials and rejects the call', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    h.signInImpl = async () => {
+      throw new TypeError('Failed to fetch')
+    }
+    await expect(client.accountHome()).rejects.toThrow('Failed to fetch')
+    expect(auth.loadCredentials()).toEqual(creds)
+  })
+
+  it('a mid-session refresh failure clears auth and resets the session', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    h.feeds.home = () => h.session.http.fetch('x')
+    h.rawFetch = async () => {
+      throw new FakeOAuth2Error('Failed to refresh access token: 400')
+    }
+    await client.getChannelVideos('UC1').catch(() => {})
+    const cur = h.session
+    await expect(client.accountHome()).rejects.toThrow(/refresh/)
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).not.toBe(cur)
   })
 
   it('signOut calls session.signOut, clears auth, and the next call creates a new session', async () => {
@@ -304,6 +369,12 @@ describe('account feeds', () => {
     expect(await client.accountHome()).toEqual([])
     h.feeds.home = () => ({})
     expect(await client.accountHome()).toEqual([])
+  })
+
+  it('accountHome skips null entries', async () => {
+    const { client } = await load()
+    h.feeds.home = () => ({ contents: { contents: [null, { type: 'RichItem', content: vid('bbbbbbbbbbb') }] } })
+    expect((await client.accountHome())[0].items.map((i) => i.id)).toEqual(['bbbbbbbbbbb'])
   })
 
   it('accountHome builds a row per shelf, or one Recommended row for a flat grid', async () => {

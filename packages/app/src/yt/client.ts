@@ -1,4 +1,4 @@
-import { Innertube, type OAuth2Tokens } from 'youtubei.js'
+import { Innertube, Utils, type OAuth2Tokens } from 'youtubei.js'
 import { stripAds, stripPlayerAds } from '../filters/ads'
 import { stripShorts } from '../filters/shorts'
 import { clearAuth, loadCredentials, saveAccount, saveCredentials, type Account } from './auth'
@@ -41,8 +41,32 @@ async function createSession(): Promise<Innertube> {
     clearAuth()
     resetSession()
   })
+  // A failed token refresh THROWS an OAuth2Error (the library only emits 'auth-error' while polling
+  // for a device code), so treat it as sign-out. Other errors (offline) keep the stored credentials.
+  const dropAuth = () => {
+    if (current !== yt) return
+    clearAuth()
+    resetSession()
+  }
+  const http = yt.session.http
+  const rawFetch = http.fetch.bind(http)
+  http.fetch = async (...args: Parameters<typeof rawFetch>) => {
+    try {
+      return await rawFetch(...args)
+    } catch (e) {
+      if (e instanceof Utils.OAuth2Error) dropAuth()
+      throw e
+    }
+  }
   const tokens = loadCredentials()
-  if (tokens) await yt.session.signIn(tokens)
+  if (tokens) {
+    try {
+      await yt.session.signIn(tokens)
+    } catch (e) {
+      if (!(e instanceof Utils.OAuth2Error)) throw e
+      clearAuth()
+    }
+  }
   return yt
 }
 
@@ -53,7 +77,11 @@ const getSession = () => (session ??= createSession().catch((e) => {
 
 export type SignInCode = { code: string; url: string }
 
-/** Starts the device-code flow. `cancel` silences every handler and rejects `done`. */
+/**
+ * Starts the device-code flow. Limitation: the library's code poller (setInterval ~5s, up to ~30min)
+ * keeps running after cancel/retry; state stays correct because that session is discarded.
+ * `cancel` silences every handler and rejects `done`.
+ */
 export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<void>; cancel: () => void } {
   let cancelled = false
   let stop: () => void = () => {}
@@ -69,6 +97,9 @@ export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<vo
       const onAuth = async (data: { credentials?: OAuth2Tokens }) => {
         if (cancelled) return
         cleanup()
+        // The library's own once('auth') handler (logged_in = true) was registered after ours and
+        // runs synchronously later in this same emit; one microtask turn lets it finish first.
+        await Promise.resolve()
         try {
           const credentials = data.credentials
           if (!credentials) throw new Error('Sign-in returned no credentials')
@@ -333,6 +364,7 @@ export async function accountHome(): Promise<Row[]> {
   const rows: Row[] = []
   const loose: Raw[] = []
   for (const entry of asArray(feed?.contents?.contents)) {
+    if (!entry) continue
     const node = unwrap(entry)
     if (Array.isArray(node.contents) && node.title) {
       const items = toVideos(node.contents.map(unwrap))
