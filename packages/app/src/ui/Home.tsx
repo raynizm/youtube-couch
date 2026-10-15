@@ -3,6 +3,7 @@ import { useProgress, useWatchlist } from '../store'
 import { accountHome, homeRows } from '../yt/client'
 import type { Item } from '../yt/types'
 import { useAuth } from '../yt/auth'
+import { homeIsEmpty } from './homeEmpty'
 import { Hero } from './Hero'
 import { useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
@@ -43,10 +44,12 @@ export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i
   if (error) return <div className="msg">Failed to load: {error}</div>
   if (!rows) return <div className="msg">Loading…</div>
 
+  if (homeIsEmpty(rows, resume.length, watchlist.length)) return <div className="msg">Nothing to show yet.</div>
+
   const rowProps = { onOpen, onPreview: preview }
   return (
     <div className="screen home">
-      <Hero items={heroItems} focused={focused} onPlay={onPlay} />
+      {heroItems.length > 0 && <Hero items={heroItems} focused={focused} onPlay={onPlay} />}
       <div
         className="home-rows"
         ref={box}
