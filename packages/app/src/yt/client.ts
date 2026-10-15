@@ -1,6 +1,7 @@
-import { Innertube } from 'youtubei.js'
+import { Innertube, type OAuth2Tokens } from 'youtubei.js'
 import { stripAds, stripPlayerAds } from '../filters/ads'
 import { stripShorts } from '../filters/shorts'
+import { clearAuth, loadCredentials, saveAccount, saveCredentials, type Account } from './auth'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
 const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
@@ -17,12 +18,101 @@ async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise
 }
 
 let session: Promise<Innertube> | undefined
-const getSession = () =>
-  (session ??= Innertube.create({
+const resetSession = () => {
+  session = undefined
+}
+
+async function createSession(): Promise<Innertube> {
+  const yt = await Innertube.create({
     fetch: proxyFetch as typeof fetch,
     retrieve_player: false,
     generate_session_locally: true,
-  }))
+  })
+  yt.session.on('update-credentials', ({ credentials }) => {
+    if (credentials) saveCredentials(credentials)
+  })
+  yt.session.on('auth-error', () => {
+    clearAuth()
+    resetSession()
+  })
+  const tokens = loadCredentials()
+  if (tokens) await yt.session.signIn(tokens)
+  return yt
+}
+
+const getSession = () => (session ??= createSession().catch((e) => {
+  resetSession()
+  throw e
+}))
+
+export type SignInCode = { code: string; url: string }
+
+/** Starts the device-code flow. `cancel` silences every handler and rejects `done`. */
+export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<void>; cancel: () => void } {
+  let cancelled = false
+  let stop: () => void = () => {}
+  let fail: (e: Error) => void = () => {}
+  const done = new Promise<void>((resolve, reject) => {
+    fail = reject
+    getSession().then((yt) => {
+      if (cancelled) return
+      const s = yt.session
+      const onPending = (d: { user_code: string; verification_url: string }) => {
+        if (!cancelled) onCode({ code: d.user_code, url: d.verification_url })
+      }
+      const onAuth = async ({ credentials }: { credentials?: OAuth2Tokens }) => {
+        if (cancelled || !credentials) return
+        cleanup()
+        saveCredentials(credentials)
+        let account: Account = { name: 'Account' }
+        try {
+          const info = (await yt.account.getInfo()) as unknown as Raw
+          const name = info.contents?.contents?.[0]?.account_name?.text
+          if (name) account = { name, avatar: info.contents?.contents?.[0]?.account_photo?.[0]?.url ?? info.account_photo?.[0]?.url }
+        } catch {
+          /* keep the generic name */
+        }
+        if (!cancelled) saveAccount(account)
+        resolve()
+      }
+      const onError = (e: unknown) => {
+        if (cancelled) return
+        cleanup()
+        reject(e instanceof Error ? e : new Error('Sign-in failed'))
+      }
+      function cleanup() {
+        s.off('auth-pending', onPending)
+        s.off('auth', onAuth)
+        s.off('auth-error', onError)
+      }
+      stop = cleanup
+      s.on('auth-pending', onPending)
+      s.on('auth', onAuth)
+      s.on('auth-error', onError)
+      s.signIn().catch(onError)
+    }, reject)
+  })
+  return {
+    done,
+    cancel: () => {
+      if (cancelled) return
+      cancelled = true
+      stop()
+      fail(new Error('Sign-in cancelled'))
+    },
+  }
+}
+
+export async function signOut(): Promise<void> {
+  try {
+    const yt = await getSession()
+    await yt.session.signOut()
+  } catch {
+    /* clear local state regardless */
+  }
+  clearAuth()
+  resetSession()
+}
 
 type Raw = Record<string, any>
 const text = (t: any): string | undefined => (typeof t === 'string' ? t : t?.text)
