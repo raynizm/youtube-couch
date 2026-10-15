@@ -1,0 +1,10 @@
+{
+  "name": "bluefin",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "bun run --filter @bluefin/app dev",
+    "build:web": "bun run --filter @bluefin/app build",
+    "test": "bun run --filter @bluefin/app test"
+  }
+}
