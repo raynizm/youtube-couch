@@ -153,6 +153,81 @@ describe('sign-in', () => {
     await client.getChannelVideos('UC1').catch(() => {})
     expect(h.session).not.toBe(first)
   })
+
+  it('cancel resets the session so a late approval cannot authenticate later requests', async () => {
+    const { client, auth } = await load()
+    const { done, cancel } = client.startSignIn(() => {})
+    const settled = expect(done).rejects.toThrow()
+    await ready()
+    const old = h.session
+    cancel()
+    await settled
+    old.emit('auth', { credentials: creds })
+    expect(auth.loadCredentials()).toBeUndefined()
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).not.toBe(old)
+    expect(h.session.signIn).not.toHaveBeenCalled()
+  })
+
+  it('cancel during a pending getInfo leaves nothing saved', async () => {
+    const { client, auth } = await load()
+    let release: () => void = () => {}
+    const gate = new Promise<void>((r) => (release = r))
+    h.info = async () => {
+      await gate
+      return goodInfo()
+    }
+    const { done, cancel } = client.startSignIn(() => {})
+    const settled = expect(done).rejects.toThrow(/cancel/i)
+    await ready()
+    h.session.emit('auth', { credentials: creds })
+    cancel()
+    release()
+    await settled
+    await new Promise((r) => setTimeout(r, 0))
+    expect(auth.loadCredentials()).toBeUndefined()
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+  })
+
+  it('rejects done when the auth handler throws', async () => {
+    const { client, auth } = await load()
+    const { done } = client.startSignIn(() => {})
+    const settled = expect(done).rejects.toThrow('boom')
+    await ready()
+    h.session.emit('auth', {
+      get credentials() {
+        throw new Error('boom')
+      },
+    })
+    await settled
+    expect(auth.loadCredentials()).toBeUndefined()
+  })
+
+  it('auth-error from a stale session does not wipe a newer login', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const old = h.session
+    await client.signOut()
+    auth.saveCredentials({ ...creds, access_token: 'newer' })
+    await client.getChannelVideos('UC1').catch(() => {})
+    const fresh = h.session
+    old.emit('auth-error', new Error('stale'))
+    expect(auth.loadCredentials()?.access_token).toBe('newer')
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).toBe(fresh)
+  })
+
+  it('auth-error from the current session clears auth and the next call creates a new session', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const cur = h.session
+    cur.emit('auth-error', new Error('revoked'))
+    expect(auth.loadCredentials()).toBeUndefined()
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).not.toBe(cur)
+  })
 })
 
 describe('toDetails', () => {
@@ -175,4 +250,5 @@ describe('toDetails', () => {
     const d = toDetails({ basic_info: { title: 'T', short_description: 'short' } })
     expect(d).toMatchObject({ title: 'T', description: 'short', meta: '', channel: undefined, related: [] })
   })
+
 })

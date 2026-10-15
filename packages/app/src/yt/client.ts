@@ -18,8 +18,14 @@ async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise
 }
 
 let session: Promise<Innertube> | undefined
+let current: Innertube | undefined
 const resetSession = () => {
   session = undefined
+  current = undefined
+}
+// A stale session (cancelled sign-in, pre-signOut) must not touch newer state.
+const resetIfCurrent = (yt: Innertube) => {
+  if (current === yt) resetSession()
 }
 
 async function createSession(): Promise<Innertube> {
@@ -28,10 +34,12 @@ async function createSession(): Promise<Innertube> {
     retrieve_player: false,
     generate_session_locally: true,
   })
+  current = yt
   yt.session.on('update-credentials', ({ credentials }) => {
-    if (credentials) saveCredentials(credentials)
+    if (credentials && current === yt) saveCredentials(credentials)
   })
   yt.session.on('auth-error', () => {
+    if (current !== yt) return
     clearAuth()
     resetSession()
   })
@@ -60,24 +68,34 @@ export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<vo
       const onPending = (d: { user_code: string; verification_url: string }) => {
         if (!cancelled) onCode({ code: d.user_code, url: d.verification_url })
       }
-      const onAuth = async ({ credentials }: { credentials?: OAuth2Tokens }) => {
-        if (cancelled || !credentials) return
+      const onAuth = async (data: { credentials?: OAuth2Tokens }) => {
+        if (cancelled) return
         cleanup()
-        saveCredentials(credentials)
-        let account: Account = { name: 'Account' }
         try {
-          const info = (await yt.account.getInfo()) as unknown as Raw
-          const name = info.contents?.contents?.[0]?.account_name?.text
-          if (name) account = { name, avatar: info.contents?.contents?.[0]?.account_photo?.[0]?.url ?? info.account_photo?.[0]?.url }
-        } catch {
-          /* keep the generic name */
+          const credentials = data.credentials
+          if (!credentials) throw new Error('Sign-in returned no credentials')
+          let account: Account = { name: 'Account' }
+          try {
+            const info = (await yt.account.getInfo()) as unknown as Raw
+            const first = info.contents?.contents?.[0]
+            const name = first?.account_name?.text
+            if (name) account = { name, avatar: first?.account_photo?.[0]?.url ?? info.account_photo?.[0]?.url }
+          } catch {
+            /* keep the generic name */
+          }
+          if (cancelled) return
+          saveCredentials(credentials)
+          saveAccount(account)
+          resolve()
+        } catch (e) {
+          resetIfCurrent(yt)
+          reject(e instanceof Error ? e : new Error('Sign-in failed'))
         }
-        if (!cancelled) saveAccount(account)
-        resolve()
       }
       const onError = (e: unknown) => {
         if (cancelled) return
         cleanup()
+        resetIfCurrent(yt)
         reject(e instanceof Error ? e : new Error('Sign-in failed'))
       }
       function cleanup() {
@@ -85,7 +103,10 @@ export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<vo
         s.off('auth', onAuth)
         s.off('auth-error', onError)
       }
-      stop = cleanup
+      stop = () => {
+        cleanup()
+        resetIfCurrent(yt)
+      }
       s.on('auth-pending', onPending)
       s.on('auth', onAuth)
       s.on('auth-error', onError)
