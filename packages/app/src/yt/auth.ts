@@ -45,7 +45,20 @@ function isCreds(v: unknown): v is OAuth2Tokens {
 }
 
 function isAccount(v: unknown): v is Account {
-  return typeof v === 'object' && v !== null && typeof (v as Record<string, unknown>).name === 'string'
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return typeof o.name === 'string' && (o.avatar === undefined || typeof o.avatar === 'string')
+}
+
+// Memory is the source of truth; storage is read once, lazily, then only written.
+let hydrated = false
+function hydrate() {
+  if (hydrated) return
+  hydrated = true
+  const c = readJson(AUTH_KEY)
+  const a = readJson(ACCOUNT_KEY)
+  memCreds = isCreds(c) ? c : undefined
+  memAccount = isAccount(a) ? a : undefined
 }
 
 function emit() {
@@ -54,28 +67,31 @@ function emit() {
 }
 
 export function loadCredentials(): OAuth2Tokens | undefined {
-  const stored = readJson(AUTH_KEY)
-  return isCreds(stored) ? stored : memCreds
+  hydrate()
+  return memCreds
 }
 
 export function saveCredentials(c: OAuth2Tokens): void {
+  hydrate()
   memCreds = c
   writeJson(AUTH_KEY, c)
   emit()
 }
 
 function loadAccount(): Account | undefined {
-  const stored = readJson(ACCOUNT_KEY)
-  return isAccount(stored) ? stored : memAccount
+  hydrate()
+  return memAccount
 }
 
 export function saveAccount(a: Account): void {
+  hydrate()
   memAccount = a
   writeJson(ACCOUNT_KEY, a)
   emit()
 }
 
 export function clearAuth(): void {
+  hydrated = true
   memCreds = undefined
   memAccount = undefined
   remove(AUTH_KEY)
