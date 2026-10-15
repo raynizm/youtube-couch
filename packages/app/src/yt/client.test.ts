@@ -4,7 +4,7 @@ import { toDetails } from './client'
 type Handler = (arg?: any) => void
 const { FakeOAuth2Error } = vi.hoisted(() => ({ FakeOAuth2Error: class extends Error {} }))
 const h = vi.hoisted(() => {
-  const state: { session: any; info: any; feeds: Record<string, (arg?: any) => any>; rawFetch: () => any; signInImpl: any } = {
+  const state: { session: any; info: any; feeds: Record<string, (...arg: any[]) => any>; rawFetch: () => any; signInImpl: any } = {
     session: undefined,
     info: undefined,
     feeds: {},
@@ -57,11 +57,7 @@ vi.mock('youtubei.js', () => ({
             return h.info()
           },
         },
-        getHomeFeed: async () => h.feeds.home(),
-        getSubscriptionsFeed: async () => h.feeds.subs(),
-        getPlaylists: async () => h.feeds.playlists(),
-        getHistory: async () => h.feeds.history(),
-        getPlaylist: async (id: string) => h.feeds.playlist(id),
+        actions: { execute: async (path: string, args: any) => ({ data: h.feeds.browse?.(args.browseId, args, path) }) },
       }
     }),
   },
@@ -185,7 +181,7 @@ describe('sign-in', () => {
     h.signInImpl = async () => {
       throw new FakeOAuth2Error('Failed to refresh access token: 400')
     }
-    h.feeds.home = () => ({})
+    h.feeds.browse = () => ({})
     await expect(client.accountHome()).resolves.toEqual([])
     expect(auth.loadCredentials()).toBeUndefined()
     expect(auth.getAuthSnapshot().signedIn).toBe(false)
@@ -204,7 +200,7 @@ describe('sign-in', () => {
   it('a mid-session refresh failure clears auth and resets the session', async () => {
     const { client, auth } = await load()
     auth.saveCredentials(creds)
-    h.feeds.home = () => h.session.http.fetch('x')
+    h.feeds.browse = () => h.session.http.fetch('x')
     h.rawFetch = async () => {
       throw new FakeOAuth2Error('Failed to refresh access token: 400')
     }
@@ -216,13 +212,95 @@ describe('sign-in', () => {
     expect(h.session).not.toBe(cur)
   })
 
-  it('signOut calls session.signOut, clears auth, and the next call creates a new session', async () => {
+  it('a refresh failure from a 5xx/429 keeps the credentials', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const cur = h.session
+    for (const status of [500, 503, 429]) {
+      h.rawFetch = async () => {
+        throw new FakeOAuth2Error(`Failed to refresh access token: ${status}`)
+      }
+      await expect(cur.http.fetch('x')).rejects.toThrow(String(status))
+    }
+    h.rawFetch = async () => {
+      throw new TypeError('Failed to fetch')
+    }
+    await expect(cur.http.fetch('x')).rejects.toThrow('Failed to fetch')
+    expect(auth.loadCredentials()).toEqual(creds)
+    expect(auth.getAuthSnapshot().signedIn).toBe(true)
+  })
+
+  it('invalid_grant style OAuth2Error (server error body) clears auth', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const e: any = new FakeOAuth2Error('Authorization server returned an error')
+    e.info = { error_code: 'invalid_grant' }
+    h.rawFetch = async () => {
+      throw e
+    }
+    await expect(h.session.http.fetch('x')).rejects.toThrow()
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+  })
+
+  it('a 401 on an authenticated request signs the user out', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const cur = h.session
+    cur.logged_in = true
+    h.rawFetch = async () => {
+      throw new Error('Request to https://x failed with status code 401')
+    }
+    await expect(cur.http.fetch('x')).rejects.toThrow('401')
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).not.toBe(cur)
+  })
+
+  it('a 401 on a signed-out session does not touch auth state', async () => {
+    const { client, auth } = await load()
+    await client.getChannelVideos('UC1').catch(() => {})
+    h.rawFetch = async () => {
+      throw new Error('Request to https://x failed with status code 401')
+    }
+    await expect(h.session.http.fetch('x')).rejects.toThrow('401')
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+  })
+
+  it('signOut flips to signed out immediately, then revokes in the background', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const first = h.session
+    let release: () => void = () => {}
+    first.signOut.mockImplementation(() => new Promise<void>((r) => (release = r)))
+    await client.signOut()
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+    await vi.waitFor(() => expect(first.signOut).toHaveBeenCalled())
+    release()
+    await client.getChannelVideos('UC1').catch(() => {})
+    expect(h.session).not.toBe(first)
+  })
+
+  it('signOut survives a failing revoke', async () => {
+    const { client, auth } = await load()
+    auth.saveCredentials(creds)
+    await client.getChannelVideos('UC1').catch(() => {})
+    const first = h.session
+    first.signOut.mockRejectedValue(new Error('offline'))
+    await expect(client.signOut()).resolves.toBeUndefined()
+    expect(auth.getAuthSnapshot().signedIn).toBe(false)
+    await vi.waitFor(() => expect(first.signOut).toHaveBeenCalled())
+  })
+
+  it('signOut clears auth and the next call creates a new session', async () => {
     const { client, auth } = await load()
     auth.saveCredentials(creds)
     await client.getChannelVideos('UC1').catch(() => {})
     const first = h.session
     await client.signOut()
-    expect(first.signOut).toHaveBeenCalled()
     expect(auth.getAuthSnapshot().signedIn).toBe(false)
     await client.getChannelVideos('UC1').catch(() => {})
     expect(h.session).not.toBe(first)
@@ -304,6 +382,12 @@ describe('sign-in', () => {
   })
 })
 
+const tile = (id: string, type: string, extra: Record<string, unknown> = {}) => ({
+  tileRenderer: { contentId: id, contentType: `TILE_CONTENT_TYPE_${type}`, ...extra },
+})
+const grid = (items: unknown[]) => ({
+  contents: { tvBrowseRenderer: { content: { tvSurfaceContentRenderer: { content: { gridRenderer: { items } } } } } },
+})
 const vid = (id: string, extra: Record<string, unknown> = {}) => ({ type: 'Video', id, title: { text: id }, ...extra })
 
 describe('account feeds', () => {
@@ -322,83 +406,56 @@ describe('account feeds', () => {
     expect(client.toItem({ type: 'GridPlaylist', id: 'PL2', title: { text: 'G' } })).toMatchObject({ id: 'PL2', kind: 'playlist' })
   })
 
-  it('subscriptionsFeed drops shorts and ads and keeps videos', async () => {
+  it('feeds call the TV browse endpoint with the right browseId', async () => {
     const { client } = await load()
-    h.feeds.subs = () => ({
-      videos: [
-        vid('aaaaaaaaaaa'),
-        { type: 'ReelItem', id: 'short1', title: { text: 's' } },
-        { type: 'AdSlot' },
-        { type: 'Mystery' },
-        vid('bbbbbbbbbbb'),
-      ],
-    })
-    expect((await client.subscriptionsFeed()).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
-  })
-
-  it('accountHistory flattens sections and ignores unknown node types', async () => {
-    const { client } = await load()
-    h.feeds.history = () => ({
-      sections: [
-        { contents: [vid('aaaaaaaaaaa'), { type: 'Weird' }, { type: 'ReelShelf', items: [] }] },
-        { contents: [vid('bbbbbbbbbbb')] },
-        {},
-      ],
-    })
-    expect((await client.accountHistory()).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
-  })
-
-  it('accountPlaylists returns only playlist items', async () => {
-    const { client } = await load()
-    h.feeds.playlists = () => ({
-      playlists: [
-        { type: 'GridPlaylist', id: 'PL1', title: { text: 'One' } },
-        vid('aaaaaaaaaaa'),
-        { type: 'LockupView', content_id: 'PL2', content_type: 'PLAYLIST', metadata: { title: { text: 'Two' } } },
-      ],
-    })
-    expect(await client.accountPlaylists()).toMatchObject([
-      { id: 'PL1', kind: 'playlist' },
-      { id: 'PL2', kind: 'playlist' },
+    const calls: any[] = []
+    h.feeds.browse = (id: string, args: any) => (calls.push([id, args.client]), {})
+    await client.accountHome()
+    await client.subscriptionsFeed()
+    await client.accountHistory()
+    await client.accountPlaylists()
+    await client.getPlaylistVideos('PL1')
+    expect(calls).toEqual([
+      ['FEwhat_to_watch', 'TV'],
+      ['FEsubscriptions', 'TV'],
+      ['FEhistory', 'TV'],
+      ['FEplaylist_aggregation', 'TV'],
+      ['VLPL1', 'TV'],
     ])
   })
 
-  it('accountHome returns [] for an empty feed instead of throwing', async () => {
+  it('feeds return [] for empty or odd responses', async () => {
     const { client } = await load()
-    h.feeds.home = () => ({ contents: { contents: [] } })
-    expect(await client.accountHome()).toEqual([])
-    h.feeds.home = () => ({})
-    expect(await client.accountHome()).toEqual([])
+    for (const data of [undefined, null, {}, { contents: null }]) {
+      h.feeds.browse = () => data
+      expect(await client.accountHome()).toEqual([])
+      expect(await client.subscriptionsFeed()).toEqual([])
+      expect(await client.accountHistory()).toEqual([])
+      expect(await client.accountPlaylists()).toEqual([])
+      expect(await client.getPlaylistVideos('PL1')).toEqual([])
+    }
   })
 
-  it('accountHome skips null entries', async () => {
+  it('history and playlists parse grid tiles; playlist videos collect tiles anywhere', async () => {
     const { client } = await load()
-    h.feeds.home = () => ({ contents: { contents: [null, { type: 'RichItem', content: vid('bbbbbbbbbbb') }] } })
-    expect((await client.accountHome())[0].items.map((i) => i.id)).toEqual(['bbbbbbbbbbb'])
+    h.feeds.browse = (id: string) =>
+      id === 'FEplaylist_aggregation'
+        ? grid([tile('WL', 'PLAYLIST'), tile('aaaaaaaaaaa', 'VIDEO')])
+        : id === 'FEhistory'
+          ? grid([tile('aaaaaaaaaaa', 'VIDEO'), tile('PL9', 'PLAYLIST')])
+          : { deep: [{ x: { tileRenderer: tile('bbbbbbbbbbb', 'VIDEO').tileRenderer } }, null] }
+    expect((await client.accountPlaylists()).map((i) => i.id)).toEqual(['WL'])
+    expect((await client.accountHistory()).map((i) => i.id)).toEqual(['aaaaaaaaaaa'])
+    expect((await client.getPlaylistVideos('PL1')).map((i) => i.id)).toEqual(['bbbbbbbbbbb'])
   })
 
-  it('accountHome builds a row per shelf, or one Recommended row for a flat grid', async () => {
+  it('null nodes inside feeds do not throw', async () => {
     const { client } = await load()
-    h.feeds.home = () => ({
-      contents: {
-        contents: [
-          { type: 'RichSection', content: { type: 'RichShelf', title: { text: 'Shelf' }, contents: [{ type: 'RichItem', content: vid('aaaaaaaaaaa') }] } },
-          { type: 'RichItem', content: vid('bbbbbbbbbbb') },
-          { type: 'RichItem', content: vid('ccccccccccc') },
-        ],
-      },
-    })
-    const rows = await client.accountHome()
-    expect(rows.map((r) => [r.title, r.items.map((i) => i.id)])).toEqual([
-      ['Shelf', ['aaaaaaaaaaa']],
-      ['Recommended', ['bbbbbbbbbbb', 'ccccccccccc']],
+    expect(client.toVideos([null, undefined, vid('aaaaaaaaaaa'), { type: 'Row', items: [null, vid('bbbbbbbbbbb')] }] as any).map((i) => i.id)).toEqual([
+      'aaaaaaaaaaa',
+      'bbbbbbbbbbb',
     ])
-  })
-
-  it('getPlaylistVideos returns videos from the playlist', async () => {
-    const { client } = await load()
-    h.feeds.playlist = () => ({ videos: [vid('aaaaaaaaaaa'), { type: 'PlaylistVideo', id: 'bbbbbbbbbbb', title: { text: 'P' } }] })
-    expect((await client.getPlaylistVideos('PL1')).map((i) => i.id)).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb'])
+    expect(client.toItem(null as any)).toBeUndefined()
   })
 })
 

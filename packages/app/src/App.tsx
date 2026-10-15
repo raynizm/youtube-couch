@@ -25,6 +25,8 @@ export default function App() {
   const [signingIn, setSigningIn] = useState(false)
   const [menu, setMenu] = useState(false)
   const auth = useAuth()
+  // Losing auth (401, failed refresh) must not leave the menu armed for the next sign-in.
+  if (menu && !auth.signedIn) setMenu(false)
   const details = stack[stack.length - 1]
   useSpatialNav(!playing)
   const open = useCallback((i: Item) => i.kind === 'video' && setStack((s) => [...s, i]), [])

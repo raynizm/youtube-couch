@@ -2,7 +2,8 @@ import { Innertube, Utils, type OAuth2Tokens } from 'youtubei.js'
 import { stripAds, stripPlayerAds } from '../filters/ads'
 import { stripShorts } from '../filters/shorts'
 import { clearAuth, loadCredentials, saveAccount, saveCredentials, type Account } from './auth'
-import { toProxyHeaders } from './proxyHeaders'
+import { scopeBearer, toProxyHeaders } from './proxyHeaders'
+import { allItems, parseGrid, parseHome, parseSubscriptions } from './tv'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
 const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
@@ -12,6 +13,7 @@ async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise
   const req = new Request(input as RequestInfo, init)
   const headers = toProxyHeaders(init, input)
   const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.arrayBuffer()
+  scopeBearer(headers, body)
   return fetch(proxied(req.url), { method: req.method, headers, body })
 }
 
@@ -25,6 +27,18 @@ const resetSession = () => {
 const resetIfCurrent = (yt: Innertube) => {
   if (current === yt) resetSession()
 }
+
+/** True only for an OAuth2Error that means the server refused the credentials (not a transient failure). */
+function isAuthRejection(e: unknown): boolean {
+  if (!(e instanceof Utils.OAuth2Error)) return false
+  const status = /(\d{3})\s*$/.exec(e.message)?.[1]
+  if (status) return status === '400' || status === '401'
+  const info = (e as { info?: Raw }).info
+  if (info && (info.error || info.error_code)) return true
+  return /invalid tokens|no tokens available|invalid_grant/i.test(e.message)
+}
+
+const isUnauthorized = (e: unknown) => e instanceof Error && /status code 401\b/.test(e.message)
 
 async function createSession(): Promise<Innertube> {
   const yt = await Innertube.create({
@@ -41,8 +55,9 @@ async function createSession(): Promise<Innertube> {
     clearAuth()
     resetSession()
   })
-  // A failed token refresh THROWS an OAuth2Error (the library only emits 'auth-error' while polling
-  // for a device code), so treat it as sign-out. Other errors (offline) keep the stored credentials.
+  // A refresh the server REJECTS (HTTP 400/401, invalid_grant) throws an OAuth2Error, and a 401 on an
+  // authenticated request throws an InnertubeError; both mean the credentials are dead. Network
+  // failures, 5xx and 429 keep the stored credentials.
   const dropAuth = () => {
     if (current !== yt) return
     clearAuth()
@@ -54,7 +69,7 @@ async function createSession(): Promise<Innertube> {
     try {
       return await rawFetch(...args)
     } catch (e) {
-      if (e instanceof Utils.OAuth2Error) dropAuth()
+      if (isAuthRejection(e) || (yt.session.logged_in && isUnauthorized(e))) dropAuth()
       throw e
     }
   }
@@ -63,7 +78,7 @@ async function createSession(): Promise<Innertube> {
     try {
       await yt.session.signIn(tokens)
     } catch (e) {
-      if (!(e instanceof Utils.OAuth2Error)) throw e
+      if (!isAuthRejection(e)) throw e
       clearAuth()
     }
   }
@@ -153,15 +168,19 @@ export function startSignIn(onCode: (c: SignInCode) => void): { done: Promise<vo
   }
 }
 
+const REVOKE_TIMEOUT_MS = 5000
+
+/** Signs out locally at once; revoking the token on the server is best effort in the background. */
 export async function signOut(): Promise<void> {
-  try {
-    const yt = await getSession()
-    await yt.session.signOut()
-  } catch {
-    /* clear local state regardless */
-  }
+  const pending = session
   clearAuth()
   resetSession()
+  if (!pending) return
+  void pending
+    .then((yt) =>
+      Promise.race([yt.session.signOut(), new Promise<void>((resolve) => setTimeout(resolve, REVOKE_TIMEOUT_MS))]),
+    )
+    .catch(() => {})
 }
 
 type Raw = Record<string, any>
@@ -169,6 +188,7 @@ const text = (t: any): string | undefined => (typeof t === 'string' ? t : t?.tex
 
 /** Maps the parser's node types onto our flat Item shape. Returns undefined for unknown types. */
 export function toItem(n: Raw): Item | undefined {
+  if (!n) return undefined
   if (n.type === 'Video' && n.id) {
     return {
       id: n.id,
@@ -214,6 +234,7 @@ export function toItem(n: Raw): Item | undefined {
 function flatten(nodes: Raw[]): Item[] {
   const out: Item[] = []
   for (const n of nodes) {
+    if (!n || typeof n !== 'object') continue
     const item = toItem(n)
     if (item) out.push(item)
     else if (Array.isArray(n.items)) out.push(...flatten(n.items))
@@ -353,51 +374,30 @@ export async function fetchRange(url: string, start: number, end: number): Promi
   return res.arrayBuffer()
 }
 
-const asArray = (v: unknown): Raw[] => (Array.isArray(v) ? (v as Raw[]) : [])
-/** Home-feed grid entries wrap the real node in `.content`. */
-const unwrap = (n: Raw): Raw => (n && n.content && typeof n.content === 'object' && !Array.isArray(n.content) ? n.content : n)
-
-/** Personalised home: one row per shelf; loose grid items collect into a single "Recommended" row. */
-export async function accountHome(): Promise<Row[]> {
+const tvBrowse = async (browseId: string): Promise<unknown> => {
   const yt = await getSession()
-  const feed = (await yt.getHomeFeed()) as unknown as Raw
-  const rows: Row[] = []
-  const loose: Raw[] = []
-  for (const entry of asArray(feed?.contents?.contents)) {
-    if (!entry) continue
-    const node = unwrap(entry)
-    if (Array.isArray(node.contents) && node.title) {
-      const items = toVideos(node.contents.map(unwrap))
-      if (items.length) rows.push({ title: text(node.title) ?? '', items })
-    } else {
-      loose.push(node)
-    }
-  }
-  const items = toVideos(loose)
-  if (items.length) rows.push({ title: 'Recommended', items })
-  return rows
+  const res = (await yt.actions.execute('/browse', { browseId, client: 'TV' } as any)) as unknown as Raw
+  return res?.data
+}
+
+/** Personalised home (TV client): one row per shelf. */
+export async function accountHome(): Promise<Row[]> {
+  return parseHome(await tvBrowse('FEwhat_to_watch'))
 }
 
 export async function subscriptionsFeed(): Promise<Item[]> {
-  const yt = await getSession()
-  const feed = (await yt.getSubscriptionsFeed()) as unknown as Raw
-  return toVideos(asArray(feed?.videos))
+  return parseSubscriptions(await tvBrowse('FEsubscriptions'))
 }
 
 export async function accountPlaylists(): Promise<Item[]> {
-  const yt = await getSession()
-  const feed = (await yt.getPlaylists()) as unknown as Raw
-  return flatten(asArray(feed?.playlists)).filter((i) => i.kind === 'playlist')
+  return parseGrid(await tvBrowse('FEplaylist_aggregation')).filter((i) => i.kind === 'playlist')
 }
 
 export async function accountHistory(): Promise<Item[]> {
-  const yt = await getSession()
-  const feed = (await yt.getHistory()) as unknown as Raw
-  return toVideos(asArray(feed?.sections).flatMap((s) => asArray(s?.contents)))
+  return parseGrid(await tvBrowse('FEhistory')).filter((i) => i.kind === 'video')
 }
 
+/** Playlist browse shape was not captured, so every tile in the response is collected. */
 export async function getPlaylistVideos(id: string): Promise<Item[]> {
-  const yt = await getSession()
-  const pl = (await yt.getPlaylist(id)) as unknown as Raw
-  return toVideos(asArray(pl?.videos))
+  return allItems(await tvBrowse(`VL${id}`)).filter((i) => i.kind === 'video')
 }
