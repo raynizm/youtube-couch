@@ -14,7 +14,9 @@ export function useSpatialNav(enabled = true) {
       if (!dir) return
       const active = document.activeElement as HTMLElement | null
       if (active?.tagName === 'INPUT' && (dir === 'left' || dir === 'right')) return
-      const els = Array.from(document.querySelectorAll<HTMLElement>('[data-focusable]'))
+      // An open modal owns the D-pad: only its own controls are reachable.
+      const scope = document.querySelector('[data-modal]') ?? document
+      const els = Array.from(scope.querySelectorAll<HTMLElement>('[data-focusable]'))
       if (!els.length) return
       e.preventDefault()
       if (!active || !els.includes(active)) return els[0].focus()

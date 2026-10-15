@@ -9,7 +9,9 @@ const TABS = [
   { id: 'history', label: 'History', icon: <HistoryIcon /> },
 ] as const
 
-export function Nav({ tab, onTab, user }: { tab: Tab; onTab: (t: Tab) => void; user: string }) {
+type Auth = { signedIn: boolean; name?: string; avatar?: string }
+
+export function Nav({ tab, onTab, auth, onAccount }: { tab: Tab; onTab: (t: Tab) => void; auth: Auth; onAccount: () => void }) {
   return (
     <header className="nav">
       <div className="nav-pill">
@@ -22,10 +24,10 @@ export function Nav({ tab, onTab, user }: { tab: Tab; onTab: (t: Tab) => void; u
         <button data-focusable className={tab === 'search' ? 'active' : ''} aria-label="Search" onClick={() => onTab('search')}>
           <SearchIcon />
         </button>
-        <span className="nav-user">
-          <span className="avatar" />
-          {user}
-        </span>
+        <button data-focusable className="nav-user" onClick={onAccount}>
+          {auth.signedIn && auth.avatar ? <img className="nav-avatar" src={auth.avatar} alt="" /> : <span className="avatar" />}
+          {auth.signedIn ? auth.name || 'Account' : 'Sign in'}
+        </button>
       </div>
     </header>
   )
