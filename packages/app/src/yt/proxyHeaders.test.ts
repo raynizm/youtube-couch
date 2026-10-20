@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromProxyHeaders, scopeBearer, toProxyHeaders } from './proxyHeaders'
+import { fromProxyHeaders, scopeBearer, scopeProfile, toProxyHeaders } from './proxyHeaders'
 
 describe('toProxyHeaders', () => {
   it('reads referer from a plain object', () => {
@@ -76,5 +76,30 @@ describe('scopeBearer', () => {
   it('accepts string bodies and leaves header-less requests alone', () => {
     expect(scopeBearer(hdrs(), '{"context":{"client":{"clientName":"TVHTML5"}}}').has('authorization')).toBe(true)
     expect(scopeBearer(new Headers(), undefined).has('authorization')).toBe(false)
+  })
+})
+
+describe('scopeProfile', () => {
+  const enc = (o: unknown) => new TextEncoder().encode(JSON.stringify(o)).buffer as ArrayBuffer
+  const dec = (b?: ArrayBuffer) => JSON.parse(new TextDecoder().decode(b))
+
+  it('keeps the profile for TVHTML5', () => {
+    const body = enc({ context: { client: { clientName: 'TVHTML5' }, user: { onBehalfOfUser: '9' } } })
+    expect(dec(scopeProfile(body)).context.user.onBehalfOfUser).toBe('9')
+  })
+
+  it('removes the profile for other clients and keeps the rest', () => {
+    const body = enc({ videoId: 'v', context: { client: { clientName: 'WEB' }, user: { onBehalfOfUser: '9', lockedSafetyMode: false } } })
+    const out = dec(scopeProfile(body))
+    expect(out.context.user).toEqual({ lockedSafetyMode: false })
+    expect(out.videoId).toBe('v')
+  })
+
+  it('passes through bodies without a profile, non-JSON and missing bodies', () => {
+    const plain = enc({ context: { client: { clientName: 'WEB' } } })
+    expect(scopeProfile(plain)).toBe(plain)
+    const junk = new TextEncoder().encode('nope').buffer as ArrayBuffer
+    expect(scopeProfile(junk)).toBe(junk)
+    expect(scopeProfile(undefined)).toBeUndefined()
   })
 })

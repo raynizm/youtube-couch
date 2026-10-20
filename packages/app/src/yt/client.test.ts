@@ -100,7 +100,7 @@ describe('sign-in', () => {
     h.session.emit('auth', { credentials: creds })
     await done
     expect(auth.loadCredentials()).toEqual(creds)
-    expect(auth.getAuthSnapshot()).toEqual({ signedIn: true, name: 'Ann', avatar: 'p.jpg' })
+    expect(auth.getAuthSnapshot()).toMatchObject({ signedIn: true, name: 'Ann', avatar: 'p.jpg' })
   })
 
   it('does not look up the account until the session is marked logged in', async () => {

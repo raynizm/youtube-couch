@@ -64,3 +64,21 @@ export function scopeBearer(headers: Headers, body?: ArrayBuffer | string | null
   if (!tv) headers.delete('authorization')
   return headers
 }
+
+/**
+ * The chosen profile (`context.user.onBehalfOfUser`) only makes sense next to the OAuth bearer, which
+ * `scopeBearer` keeps for TVHTML5 alone. On any other client it would arrive without credentials and
+ * YouTube answers 401, so it is removed there. Bodies that are not JSON objects pass through untouched.
+ */
+export function scopeProfile(body?: ArrayBuffer): ArrayBuffer | undefined {
+  if (!body) return body
+  try {
+    const json = JSON.parse(new TextDecoder().decode(body))
+    const user = json?.context?.user
+    if (json?.context?.client?.clientName === 'TVHTML5' || !user || !('onBehalfOfUser' in user)) return body
+    delete user.onBehalfOfUser
+    return new TextEncoder().encode(JSON.stringify(json)).buffer as ArrayBuffer
+  } catch {
+    return body
+  }
+}

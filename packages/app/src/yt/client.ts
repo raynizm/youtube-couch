@@ -1,8 +1,9 @@
 import { Innertube, Utils, type OAuth2Tokens } from 'youtubei.js'
 import { stripAds, stripPlayerAds } from '../filters/ads'
 import { stripShorts } from '../filters/shorts'
-import { clearAuth, loadCredentials, saveAccount, saveCredentials, type Account } from './auth'
-import { scopeBearer, toProxyHeaders } from './proxyHeaders'
+import { clearAuth, loadCredentials, loadProfileId, saveAccount, saveCredentials, saveProfileId, type Account } from './auth'
+import { parseProfiles, type Profile } from './profiles'
+import { scopeBearer, scopeProfile, toProxyHeaders } from './proxyHeaders'
 import { allItems, parseGrid, parseHome, parseSubscriptions } from './tv'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
@@ -12,7 +13,7 @@ const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
 async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const req = new Request(input as RequestInfo, init)
   const headers = toProxyHeaders(init, input)
-  const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.arrayBuffer()
+  const body = ['GET', 'HEAD'].includes(req.method) ? undefined : scopeProfile(await req.arrayBuffer())
   scopeBearer(headers, body)
   return fetch(proxied(req.url), { method: req.method, headers, body })
 }
@@ -39,6 +40,14 @@ function isAuthRejection(e: unknown): boolean {
 }
 
 const isUnauthorized = (e: unknown) => e instanceof Error && /status code 401\b/.test(e.message)
+
+/** Makes every request act as the given page id; undefined goes back to the primary account. */
+function applyProfile(yt: Innertube, id: string | undefined) {
+  const user = yt.session.context?.user
+  if (!user) return
+  if (id) user.onBehalfOfUser = id
+  else delete user.onBehalfOfUser
+}
 
 async function createSession(): Promise<Innertube> {
   const yt = await Innertube.create({
@@ -77,6 +86,7 @@ async function createSession(): Promise<Innertube> {
   if (tokens) {
     try {
       await yt.session.signIn(tokens)
+      applyProfile(yt, loadProfileId())
     } catch (e) {
       if (!isAuthRejection(e)) throw e
       clearAuth()
@@ -400,4 +410,26 @@ export async function accountHistory(): Promise<Item[]> {
 /** Playlist browse shape was not captured, so every tile in the response is collected. */
 export async function getPlaylistVideos(id: string): Promise<Item[]> {
   return allItems(await tvBrowse(`VL${id}`)).filter((i) => i.kind === 'video')
+}
+
+/** Every profile the signed-in login can act as. Empty when the response has none we understand. */
+export async function listProfiles(): Promise<Profile[]> {
+  const yt = await getSession()
+  const ask = async (args: Raw) => ((await yt.actions.execute('/account/accounts_list', { ...args, client: 'TV' } as any)) as unknown as Raw)?.data
+  const switcher = await ask({ requestType: 'ACCOUNTS_LIST_REQUEST_TYPE_CHANNEL_SWITCHER', callCircumstance: 'SWITCHING_USERS_FULL' }).catch(() => undefined)
+  let profiles = parseProfiles(switcher)
+  if (profiles.length < 2) {
+    const plain = await ask({}).catch(() => undefined)
+    const more = parseProfiles(plain)
+    if (more.length > profiles.length) profiles = more
+  }
+  return profiles
+}
+
+/** Switches the whole app to one profile; feeds keyed on the auth snapshot refetch on their own. */
+export async function selectProfile(p: Profile): Promise<void> {
+  const yt = await getSession()
+  applyProfile(yt, p.id)
+  saveAccount({ name: p.name, avatar: p.avatar })
+  saveProfileId(p.id)
 }

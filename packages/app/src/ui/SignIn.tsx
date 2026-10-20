@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
 import { startSignIn, type SignInCode } from '../yt/client'
+import { QrCode } from './QrCode'
 
-export function SignIn({ onClose }: { onClose: () => void }) {
+/** Verification URL with the code prefilled, so a phone scan lands ready to confirm. */
+export function activationUrl({ url, code }: SignInCode): string {
+  const base = /^https?:\/\//.test(url) ? url : `https://${url}`
+  return `${base}${base.includes('?') ? '&' : '?'}user_code=${encodeURIComponent(code)}`
+}
+
+export function SignIn({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [code, setCode] = useState<SignInCode>()
   const [error, setError] = useState<string>()
   const [attempt, setAttempt] = useState(0)
   const btn = useRef<HTMLButtonElement>(null)
   const closeRef = useRef(onClose)
+  const doneRef = useRef(onDone)
   useEffect(() => {
     closeRef.current = onClose
-  }, [onClose])
+    doneRef.current = onDone
+  }, [onClose, onDone])
 
   const retry = () => {
     setCode(undefined)
@@ -23,7 +32,7 @@ export function SignIn({ onClose }: { onClose: () => void }) {
     let stale = false
     const s = startSignIn((c) => !stale && setCode(c))
     s.done.then(
-      () => !stale && closeRef.current(),
+      () => !stale && doneRef.current(),
       (e) => !stale && setError(e instanceof Error && e.message ? e.message : 'Sign-in failed'),
     )
     return () => {
@@ -60,12 +69,15 @@ export function SignIn({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           {code ? (
-            <>
-              <p>
-                Go to <strong>{code.url}</strong> and enter
-              </p>
-              <div className="signin-code">{code.code}</div>
-            </>
+            <div className="signin-body">
+              <QrCode text={activationUrl(code)} label={`Scan to sign in at ${code.url}`} />
+              <div className="signin-steps">
+                <p>
+                  Scan the code with your phone, or go to <strong>{code.url}</strong> and enter
+                </p>
+                <div className="signin-code">{code.code}</div>
+              </div>
+            </div>
           ) : (
             <p className="signin-wait">Getting a code…</p>
           )}

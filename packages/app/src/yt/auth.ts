@@ -2,14 +2,17 @@ import { useSyncExternalStore } from 'react'
 import type { OAuth2Tokens } from 'youtubei.js'
 
 export type Account = { name: string; avatar?: string }
-type AuthState = { signedIn: boolean; name?: string; avatar?: string }
+/** `feedKey` changes whenever the signed-in identity does, so feeds keyed on it refetch. */
+type AuthState = { signedIn: boolean; name?: string; avatar?: string; profileId?: string; feedKey: string }
 
 const AUTH_KEY = 'bluefin.auth'
 const ACCOUNT_KEY = 'bluefin.account'
+const PROFILE_KEY = 'bluefin.profile'
 
 // In-memory copies are the fallback when storage is unavailable.
 let memCreds: OAuth2Tokens | undefined
 let memAccount: Account | undefined
+let memProfileId: string | undefined
 let snap: AuthState | undefined
 const listeners = new Set<() => void>()
 
@@ -59,6 +62,8 @@ function hydrate() {
   const a = readJson(ACCOUNT_KEY)
   memCreds = isCreds(c) ? c : undefined
   memAccount = isAccount(a) ? a : undefined
+  const pid = readJson(PROFILE_KEY)
+  memProfileId = typeof pid === 'string' && pid ? pid : undefined
 }
 
 function emit() {
@@ -90,20 +95,36 @@ export function saveAccount(a: Account): void {
   emit()
 }
 
+/** Page id of the chosen channel/profile; undefined means the primary account. */
+export function loadProfileId(): string | undefined {
+  hydrate()
+  return memProfileId
+}
+
+export function saveProfileId(id: string | undefined): void {
+  hydrate()
+  memProfileId = id
+  if (id) writeJson(PROFILE_KEY, id)
+  else remove(PROFILE_KEY)
+  emit()
+}
+
 export function clearAuth(): void {
   hydrated = true
   memCreds = undefined
   memAccount = undefined
+  memProfileId = undefined
   remove(AUTH_KEY)
   remove(ACCOUNT_KEY)
+  remove(PROFILE_KEY)
   emit()
 }
 
 export function getAuthSnapshot(): AuthState {
   if (snap) return snap
-  if (!loadCredentials()) return (snap = { signedIn: false })
+  if (!loadCredentials()) return (snap = { signedIn: false, feedKey: 'out' })
   const acc = loadAccount()
-  return (snap = { signedIn: true, name: acc?.name, avatar: acc?.avatar })
+  return (snap = { signedIn: true, name: acc?.name, avatar: acc?.avatar, profileId: memProfileId, feedKey: `in:${memProfileId ?? ''}` })
 }
 
 function subscribe(cb: () => void) {

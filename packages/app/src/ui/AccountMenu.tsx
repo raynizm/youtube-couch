@@ -1,7 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { isBack } from '../nav/useSpatialNav'
 
-export function AccountMenu({ name, onSignOut, onClose }: { name?: string; onSignOut: () => void; onClose: () => void }) {
+export function AccountMenu({
+  name,
+  onSwitch,
+  onSignOut,
+  onClose,
+}: {
+  name?: string
+  onSwitch: () => void
+  onSignOut: () => void
+  onClose: () => void
+}) {
   const cancel = useRef<HTMLButtonElement>(null)
   const closeRef = useRef(onClose)
   useEffect(() => {
@@ -22,6 +32,9 @@ export function AccountMenu({ name, onSignOut, onClose }: { name?: string; onSig
     <div className="signin" data-modal>
       <h1>{name || 'Account'}</h1>
       <div className="signin-actions">
+        <button className="btn" data-focusable onClick={onSwitch}>
+          Switch profile
+        </button>
         <button className="btn" data-focusable onClick={onSignOut}>
           Sign out
         </button>

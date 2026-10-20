@@ -47,7 +47,7 @@ describe('auth store', () => {
     ls.m.set('bluefin.auth', JSON.stringify(creds))
     ls.m.set('bluefin.account', JSON.stringify({ name: 'Ty' }))
     await fresh()
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: true, name: 'Ty', avatar: undefined })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: true, name: 'Ty', avatar: undefined })
   })
 
   it('ignores an account whose avatar is not a string', async () => {
@@ -66,9 +66,9 @@ describe('auth store', () => {
   it('getAuthSnapshot is signedIn only when credentials exist; name comes from saveAccount', () => {
     expect(a.getAuthSnapshot().signedIn).toBe(false)
     a.saveCredentials(creds)
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: true, name: undefined, avatar: undefined })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: true, name: undefined, avatar: undefined })
     a.saveAccount({ name: 'Ty', avatar: 'u' })
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: true, name: 'Ty', avatar: 'u' })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: true, name: 'Ty', avatar: 'u' })
   })
 
   it('clearAuth removes both keys and getAuthSnapshot returns { signedIn: false }', () => {
@@ -77,7 +77,7 @@ describe('auth store', () => {
     a.clearAuth()
     expect(ls.m.has('bluefin.auth')).toBe(false)
     expect(ls.m.has('bluefin.account')).toBe(false)
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: false })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: false })
   })
 
   it('getAuthSnapshot returns the same object until state changes', () => {
@@ -114,7 +114,7 @@ describe('auth store', () => {
     a.saveCredentials(creds)
     a.saveAccount({ name: 'New' })
     expect(a.loadCredentials()).toEqual(creds)
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: true, name: 'New', avatar: undefined })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: true, name: 'New', avatar: undefined })
   })
 
   it('removeItem throws but getItem works: clearAuth still signs out', async () => {
@@ -129,7 +129,7 @@ describe('auth store', () => {
     await fresh()
     expect(a.getAuthSnapshot().signedIn).toBe(true)
     a.clearAuth()
-    expect(a.getAuthSnapshot()).toEqual({ signedIn: false })
+    expect(a.getAuthSnapshot()).toMatchObject({ signedIn: false })
     expect(a.loadCredentials()).toBeUndefined()
   })
 
@@ -145,5 +145,15 @@ describe('auth store', () => {
     a.saveCredentials(creds)
     expect(a.loadCredentials()).toEqual(creds)
     expect(JSON.parse(ls.m.get('bluefin.auth') as string)).toEqual(creds)
+  })
+
+  it('keys feeds by profile and clears the profile on sign-out', () => {
+    a.saveCredentials(creds as any)
+    expect(a.getAuthSnapshot().feedKey).toBe('in:')
+    a.saveProfileId('999')
+    expect(a.getAuthSnapshot()).toMatchObject({ profileId: '999', feedKey: 'in:999' })
+    a.clearAuth()
+    expect(a.loadProfileId()).toBeUndefined()
+    expect(a.getAuthSnapshot().feedKey).toBe('out')
   })
 })

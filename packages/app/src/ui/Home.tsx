@@ -15,8 +15,8 @@ const fmtLeft = (secs: number) => {
 }
 
 export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i: Item) => void }) {
-  const { signedIn } = useAuth()
-  const { data: rows, error } = useFeed(signedIn ? accountHome : homeRows, signedIn)
+  const { signedIn, feedKey } = useAuth()
+  const { data: rows, error } = useFeed(signedIn ? accountHome : homeRows, feedKey)
   const progress = useProgress()
   const watchlist = useWatchlist()
 

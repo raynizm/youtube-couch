@@ -23,8 +23,8 @@ function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: 
 
 // Loading / error / grid for an account feed.
 export function FeedGrid({ fetcher, empty, onOpen }: { fetcher: () => Promise<Item[]>; empty: string; onOpen: (i: Item) => void }) {
-  const { signedIn } = useAuth()
-  const { data, error } = useFeed(fetcher, signedIn)
+  const { feedKey } = useAuth()
+  const { data, error } = useFeed(fetcher, feedKey)
   if (error) return <div className="msg">Failed to load: {error}</div>
   if (!data) return <div className="msg">Loading…</div>
   return <Grid items={data} empty={empty} onOpen={onOpen} />
@@ -103,7 +103,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
 
 function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: Item) => void }) {
   const watchlist = useWatchlist()
-  const { data, error } = useFeed(accountPlaylists, true)
+  const { data, error } = useFeed(accountPlaylists, useAuth().feedKey)
   const [opened, setOpened] = useState<Item>()
   const back = useCallback(() => setOpened(undefined), [])
 

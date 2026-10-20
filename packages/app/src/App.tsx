@@ -6,6 +6,7 @@ import { Details } from './ui/Details'
 import { Home } from './ui/Home'
 import { History, Playlists, Subscriptions } from './ui/Library'
 import { Nav, type Tab } from './ui/Nav'
+import { ProfilePicker } from './ui/ProfilePicker'
 import { Search } from './ui/Search'
 import { SignIn } from './ui/SignIn'
 import { useAuth } from './yt/auth'
@@ -24,9 +25,11 @@ export default function App() {
   const [stack, setStack] = useState<Item[]>([])
   const [signingIn, setSigningIn] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [choosing, setChoosing] = useState<'login' | 'manual'>()
   const auth = useAuth()
   // Losing auth (401, failed refresh) must not leave the menu armed for the next sign-in.
   if (menu && !auth.signedIn) setMenu(false)
+  if (choosing && !auth.signedIn) setChoosing(undefined)
   const details = stack[stack.length - 1]
   useSpatialNav(!playing)
   const open = useCallback((i: Item) => i.kind === 'video' && setStack((s) => [...s, i]), [])
@@ -42,8 +45,18 @@ export default function App() {
     void signOut()
     setMenu(false)
   }, [])
-  const modal = signingIn || menu
+  const modal = signingIn || menu || choosing
   const closeSignIn = useCallback(() => setSigningIn(false), [])
+  // A fresh login asks who is watching; the picker stays silent when the login has only one profile.
+  const signedIn = useCallback(() => {
+    setSigningIn(false)
+    setChoosing('login')
+  }, [])
+  const switchAccount = useCallback(() => {
+    setMenu(false)
+    setChoosing('manual')
+  }, [])
+  const closeChoosing = useCallback(() => setChoosing(undefined), [])
   const back = useCallback(() => setStack((s) => s.slice(0, -1)), [])
 
   return (
@@ -57,8 +70,9 @@ export default function App() {
         {tab === 'search' && <Search onOpen={open} />}
       </main>
       {details && <Details item={details} active={!playing && !modal} onPlay={play} onOpen={open} onClose={back} onTab={goTab} />}
-      {signingIn && <SignIn onClose={closeSignIn} />}
-      {menu && auth.signedIn && <AccountMenu name={auth.name} onSignOut={confirmSignOut} onClose={closeMenu} />}
+      {signingIn && <SignIn onClose={closeSignIn} onDone={signedIn} />}
+      {choosing && auth.signedIn && <ProfilePicker silent={choosing === 'login'} onClose={closeChoosing} />}
+      {menu && auth.signedIn && <AccountMenu name={auth.name} onSwitch={switchAccount} onSignOut={confirmSignOut} onClose={closeMenu} />}
       {playing && <Player item={playing} onClose={close} />}
     </div>
   )
