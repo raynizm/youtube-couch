@@ -4,6 +4,8 @@ export type Item = {
   title: string
   thumb: string
   author?: string
+  /** Channel avatar, when the source response carries one. */
+  authorAvatar?: string
   meta?: string
   /** Animated hover preview (silent, ~3s) when YouTube provides one. */
   preview?: string

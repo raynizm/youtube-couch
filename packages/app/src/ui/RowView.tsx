@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Item } from '../yt/types'
 import { Card } from './Card'
 import { ChevronLeft, ChevronRight } from './icons'
@@ -20,7 +20,7 @@ type RowProps = {
 const MIN_LOOP_CARDS = 8
 const SETTLE_MS = 150
 
-export function RowView({ title, cards, onOpen, onPreview, arrows = true, loop = false }: RowProps) {
+export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, arrows = true, loop = false }: RowProps) {
   const scroller = useRef<HTMLDivElement>(null)
   const n = cards.length
   const looping = loop && n >= MIN_LOOP_CARDS
@@ -91,7 +91,7 @@ export function RowView({ title, cards, onOpen, onPreview, arrows = true, loop =
       </div>
     </section>
   )
-}
+})
 
 /** Moves the scroll position instantly, even though rows normally scroll smoothly. */
 function jump(el: HTMLElement, left: number) {

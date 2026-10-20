@@ -207,6 +207,7 @@ export function toItem(n: Raw): Item | undefined {
       title: text(n.title) ?? '',
       thumb: n.thumbnails?.[0]?.url ?? `https://i.ytimg.com/vi/${n.id}/hqdefault.jpg`,
       author: n.author?.name,
+      authorAvatar: n.author?.thumbnails?.[0]?.url,
       preview: n.rich_thumbnail?.[0]?.url,
       meta: [n.short_view_count?.text, n.published?.text, n.duration?.text].filter(Boolean).join(' · '),
     }

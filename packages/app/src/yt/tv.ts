@@ -23,6 +23,13 @@ const lineTexts = (line: Raw | undefined): string[] =>
     .map((i) => textOf(i?.lineItemRenderer?.text))
     .filter((t) => t && t !== '•')
 
+/** Channel avatar of a tile, if its metadata has one (the exact node varies, so a few shapes are tried). */
+function avatarOf(meta: Raw | undefined): string | undefined {
+  const a = meta?.avatar
+  const url = a?.thumbnails?.[0]?.url ?? a?.avatarViewModel?.image?.sources?.[0]?.url ?? a?.sources?.[0]?.url
+  return typeof url === 'string' && url ? url : undefined
+}
+
 /** Maps one `tileRenderer` to an Item; undefined for shorts, unknown types or missing ids. */
 export function tileToItem(tile: unknown): Item | undefined {
   const t = obj(tile)
@@ -47,6 +54,7 @@ export function tileToItem(tile: unknown): Item | undefined {
     title,
     thumb: thumbUrl || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     author: author || undefined,
+    authorAvatar: avatarOf(meta),
     meta: [...lineTexts(lines[1]), duration].filter(Boolean).join(' · '),
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { pickNext, type Dir } from './spatial'
+import { pickNext, pickSameSide, type Dir } from './spatial'
 
 const KEYS: Record<string, Dir> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
 // Tizen remote Back = 10009, Android TV Back arrives as Escape/Backspace in WebView.
@@ -25,7 +25,11 @@ export function useSpatialNav(enabled = true) {
         return { id: String(i), x: r.left, y: r.top, w: r.width, h: r.height }
       })
       const from = boxes[els.indexOf(active)]
-      const next = pickNext(from, boxes, dir)
+      // Down from the nav bar lands on the cover's prev/next arrow on the same side before it reaches the rows.
+      const arrowIds = active.closest('.nav') && dir === 'down' ? els.flatMap((el, i) => (el.classList.contains('hero-arrow') ? [String(i)] : [])) : []
+      const next = arrowIds.length
+        ? pickSameSide(from.x + from.w / 2, window.innerWidth / 2, boxes.filter((b) => arrowIds.includes(b.id)))
+        : pickNext(from, boxes, dir)
       if (next !== undefined) {
         const el = els[Number(next)]
         const strip = el.closest<HTMLElement>('.row-items')

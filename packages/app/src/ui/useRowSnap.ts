@@ -15,7 +15,9 @@ export function useRowSnap(ref: RefObject<HTMLElement | null>, ready: boolean) {
     let target = box.scrollTop
     let busy = false
 
-    const rowTops = () => Array.from(box.querySelectorAll<HTMLElement>('.row')).map((r) => r.offsetTop)
+    // A row snaps to just below the container's top padding, which keeps it clear of the top fade.
+    const inset = () => parseFloat(getComputedStyle(box).paddingTop) || 0
+    const rowTops = () => Array.from(box.querySelectorAll<HTMLElement>('.row')).map((r) => r.offsetTop - inset())
     const maxTop = () => box.scrollHeight - box.clientHeight
 
     const animateTo = (to: number) => {
@@ -48,7 +50,7 @@ export function useRowSnap(ref: RefObject<HTMLElement | null>, ready: boolean) {
 
     const onFocus = (e: FocusEvent) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>('.row')
-      if (row) animateTo(row.offsetTop)
+      if (row) animateTo(row.offsetTop - inset())
     }
 
     box.addEventListener('wheel', onWheel, { passive: false })

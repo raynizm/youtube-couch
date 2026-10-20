@@ -3,7 +3,8 @@ import { toggleWatchlist, useWatchlist } from '../store'
 import { playClip } from '../player/mseClip'
 import { getPreviewClip, type PreviewClip } from '../yt/client'
 import type { Item } from '../yt/types'
-import { ArrowLeft, ArrowRight, BookmarkIcon, PlayIcon } from './icons'
+import { isViewCount } from './cardSub'
+import { ArrowLeft, ArrowRight, BookmarkIcon, ClockIcon, PlayIcon, UploadIcon } from './icons'
 
 const ROTATE_MS = 15000
 const PREVIEW_DELAY_MS = 3000
@@ -70,9 +71,25 @@ function Slide({ item, cls, leaving, onPlay }: { item: Item; cls: string; leavin
       <div className="hero-info">
         <h1>{item.title}</h1>
         <div className="hero-meta">
-          {[item.author, ...(item.meta ?? '').split(' · ')].filter(Boolean).map((m) => (
-            <span key={m}>{m}</span>
-          ))}
+          {[item.author, ...(item.meta ?? '').split(' · ')]
+            .filter((m): m is string => !!m && !isViewCount(m))
+            .map((m) =>
+              m === item.author ? (
+                <span key={m} className="hero-label channel">
+                  {item.authorAvatar ? <img className="hero-label-avatar" src={item.authorAvatar} alt="" /> : <span className="hero-label-avatar">{m.slice(0, 1)}</span>} {m}
+                </span>
+              ) : /\bago\b/i.test(m) ? (
+                <span key={m} className="hero-label">
+                  <UploadIcon /> {m}
+                </span>
+              ) : /^\d+(:\d{2}){1,2}$/.test(m) ? (
+                <span key={m} className="hero-label">
+                  <ClockIcon /> {m}
+                </span>
+              ) : (
+                <span key={m}>{m}</span>
+              ),
+            )}
         </div>
         <div className="hero-actions">
           <button className="btn primary icon" data-focusable aria-label="Watch now" onClick={() => onPlay(item)}>

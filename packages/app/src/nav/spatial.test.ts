@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickNext, type Box } from './spatial'
+import { pickNext, pickSameSide, type Box } from './spatial'
 
 const box = (id: string, x: number, y: number, w = 100, h = 100): Box => ({ id, x, y, w, h })
 
@@ -16,5 +16,19 @@ describe('pickNext', () => {
   })
   it('returns undefined when nothing lies that way', () => {
     expect(pickNext(items[0], items, 'up')).toBeUndefined()
+  })
+})
+
+describe('pickSameSide', () => {
+  const arrows = [box('left', 10, 300, 70), box('right', 1800, 300, 70)]
+  it('picks the arrow on the same side as the origin', () => {
+    expect(pickSameSide(300, 960, arrows)).toBe('left')
+    expect(pickSameSide(1500, 960, arrows)).toBe('right')
+  })
+  it('falls back to the nearest when that side has none', () => {
+    expect(pickSameSide(300, 960, [arrows[1]])).toBe('right')
+  })
+  it('returns undefined for no boxes', () => {
+    expect(pickSameSide(0, 960, [])).toBeUndefined()
   })
 })

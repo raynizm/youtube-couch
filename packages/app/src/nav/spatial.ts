@@ -20,3 +20,10 @@ export function pickNext(from: Box, all: Box[], dir: Dir): string | undefined {
   }
   return best?.id
 }
+
+/** The box on the same side of `mid` as `x` (the one nearest `x` if several), or the nearest overall when that side is empty. */
+export function pickSameSide(x: number, mid: number, all: Box[]): string | undefined {
+  const dist = (b: Box) => Math.abs(center(b).x - x)
+  const side = all.filter((b) => (center(b).x < mid) === (x < mid))
+  return (side.length ? side : all).reduce<Box | undefined>((best, b) => (!best || dist(b) < dist(best) ? b : best), undefined)?.id
+}

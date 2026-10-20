@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import type { Item } from '../yt/types'
 import { cardSub } from './cardSub'
 import { PlayIcon } from './icons'
 
 type Props = { item: Item; onOpen: (i: Item) => void; onPreview?: (i: Item) => void; progress?: number; subtitle?: string }
 
-export function Card({ item, onOpen, onPreview, progress, subtitle }: Props) {
+export const Card = memo(function Card({ item, onOpen, onPreview, progress, subtitle }: Props) {
   return (
     <button
       className="card"
@@ -28,4 +29,4 @@ export function Card({ item, onOpen, onPreview, progress, subtitle }: Props) {
       <span className="card-sub">{subtitle ?? cardSub(item)}</span>
     </button>
   )
-}
+})

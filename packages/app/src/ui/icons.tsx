@@ -33,3 +33,4 @@ export const Logo = () => (
     <path d="M12 2C7 2 3 5.6 3 10c0 2 .8 3.8 2.2 5.2L4 22l5-2.7c.9.2 1.9.3 3 .3 5 0 9-3.6 9-8s-4-9.6-9-9.6z" />
   </svg>
 )
+export const UploadIcon = () => svg(<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />)
