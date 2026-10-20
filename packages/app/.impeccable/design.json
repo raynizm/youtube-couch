@@ -61,7 +61,7 @@
       "refersTo": "card",
       "description": "16:9 thumbnail with title and subtitle; focus rings and scales.",
       "html": "<div class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-img\"></div><div class=\"ds-card-title\">A video title that can run to two lines</div><div class=\"ds-card-sub\">Channel · 1.2M views</div></div>",
-      "css": ".ds-card { width: 320px; outline: none; } .ds-card-img { aspect-ratio: 16/9; border-radius: 8px; background: #171717; transition: transform .15s; } .ds-card-title { margin-top: 10px; font: 500 14px/1.4 sans-serif; color: #fafafa; } .ds-card-sub { margin-top: 2px; font: 12px/1.4 sans-serif; color: #a1a1a1; } .ds-card:focus .ds-card-img { box-shadow: 0 0 0 3px #fafafa; transform: scale(1.03); }"
+      "css": ".ds-card { width: 240px; outline: none; } .ds-card-img { aspect-ratio: 16/9; border-radius: 8px; background: #171717; transition: transform .15s; } .ds-card-title { margin-top: 10px; font: 500 14px/1.4 sans-serif; color: #fafafa; } .ds-card-sub { margin-top: 2px; font: 12px/1.4 sans-serif; color: #a1a1a1; } .ds-card:focus .ds-card-img { box-shadow: 0 0 0 3px #fafafa; transform: scale(1.03); }"
     },
     {
       "name": "Search Bar",

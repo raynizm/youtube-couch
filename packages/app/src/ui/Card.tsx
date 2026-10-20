@@ -1,4 +1,5 @@
 import type { Item } from '../yt/types'
+import { cardSub } from './cardSub'
 import { PlayIcon } from './icons'
 
 type Props = { item: Item; onOpen: (i: Item) => void; onPreview?: (i: Item) => void; progress?: number; subtitle?: string }
@@ -24,7 +25,7 @@ export function Card({ item, onOpen, onPreview, progress, subtitle }: Props) {
         )}
       </span>
       <span className="card-title">{item.title}</span>
-      <span className="card-sub">{subtitle ?? [item.author, item.meta?.split(' · ').slice(0, 2).join(' · ')].filter(Boolean).join(' · ')}</span>
+      <span className="card-sub">{subtitle ?? cardSub(item)}</span>
     </button>
   )
 }

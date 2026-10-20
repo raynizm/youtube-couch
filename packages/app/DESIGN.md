@@ -63,7 +63,7 @@ components:
   card:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.card}"
-    width: "320px"
+    width: "240px"
   search-bar:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-muted}"
@@ -127,7 +127,7 @@ Neutral black and gray, with blue as the single signal.
 
 ## Layout
 
-Full-bleed screens with a 48px horizontal gutter. Home and Details split vertically: a 70vh fixed cover on top, an independently scrolling list below. A floating nav pill sits fixed at top center over a dark fade. Rows use horizontal scrolling flex lists with a 16px gap; grids use auto-fill columns (280px minimum) with a 24px/16px gap. Spacing runs on 8, 16, 24, 48. The page itself never scrolls (`overflow: hidden`); inner regions do.
+Full-bleed screens with a 48px horizontal gutter. Home's cover is a full-width 16:9 picture anchored to the top edge and filling the screen, with the rows scrolling over its lower 30vh. Details splits vertically: a 70vh fixed cover on top, an independently scrolling list below. A floating nav pill sits fixed at top center over a dark fade. Rows use horizontal scrolling flex lists with a 16px gap; grids use auto-fill columns (280px minimum) with a 24px/16px gap. Spacing runs on 8, 16, 24, 48. The page itself never scrolls (`overflow: hidden`); inner regions do. All sizes are in rem with 1rem = 1/120 of the screen width, so the UI scales with resolution; every pixel value in this file is the size at 1920 wide.
 
 ## Elevation & Depth
 
@@ -157,7 +157,7 @@ Fully round for controls (999px pills, circular icon buttons). Gently rounded fo
 - Account control sits at the end behind a divider.
 
 ### Cards
-- 320px wide, 16:9 image with 8px radius, title (two lines) and one-line subtitle below.
+- 240px wide, 16:9 image with 8px radius, title (two lines) and one-line subtitle below.
 - Hover/focus reveals a centered glass play circle (56px).
 - Optional 4px blue progress bar at the bottom edge.
 - **Focus:** 3px white ring plus 1.03 scale.

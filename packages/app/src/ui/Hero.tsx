@@ -75,8 +75,8 @@ function Slide({ item, cls, leaving, onPlay }: { item: Item; cls: string; leavin
           ))}
         </div>
         <div className="hero-actions">
-          <button className="btn primary" data-focusable onClick={() => onPlay(item)}>
-            <PlayIcon /> Watch Now
+          <button className="btn primary icon" data-focusable aria-label="Watch now" onClick={() => onPlay(item)}>
+            <PlayIcon />
           </button>
           <button className="btn icon" data-focusable aria-label="Watchlist" onClick={() => toggleWatchlist(item)}>
             <BookmarkIcon filled={saved} />

@@ -19,10 +19,10 @@ export function qrPath(text: string): { path: string; size: number } {
 }
 
 /** Always dark-on-light with a quiet zone, whatever the theme: phone cameras need the contrast. */
-export function QrCode({ text, label, px = 220 }: { text: string; label: string; px?: number }) {
+export function QrCode({ text, label }: { text: string; label: string }) {
   const { path, size } = useMemo(() => qrPath(text), [text])
   return (
-    <svg className="qr" role="img" aria-label={label} width={px} height={px} viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges">
+    <svg className="qr" role="img" aria-label={label} viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges">
       <rect width={size} height={size} fill="#fff" />
       <path d={path} fill="#000" />
     </svg>
