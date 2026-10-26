@@ -116,7 +116,7 @@ export function Player({ item, onClose }: Props) {
 
   return (
     <div className="player" onMouseMove={wake}>
-      <button ref={backBtn} className={`player-back${chrome ? '' : ' hidden'}`} aria-label="Back" onClick={onClose}>
+      <button ref={backBtn} className={`player-back${chrome || error || !stream ? '' : ' hidden'}`} aria-label="Back" onClick={onClose}>
         <ArrowLeft /> Back
       </button>
       {error && <div className="player-msg">Cannot play: {error}</div>}

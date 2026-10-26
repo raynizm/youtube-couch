@@ -87,7 +87,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
       <button className="player-back" data-focusable aria-label="Back" onClick={onBack}>
         <ArrowLeft /> Back
       </button>
-      <h2>{playlist.title}</h2>
+      <h2 className="playlist-title">{playlist.title}</h2>
       {error ? (
         <div className="msg">Failed to load: {error}</div>
       ) : !data ? (

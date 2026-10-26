@@ -47,6 +47,7 @@ export function Search({ onOpen }: { onOpen: (i: Item) => void }) {
           ))}
         </div>
       )}
+      {items?.length === 0 && !loading && <div className="msg">No results for “{q}”.</div>}
       {items && !loading && (
         <div className="grid">
           {items.map((i) => (

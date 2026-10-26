@@ -1,32 +1,54 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
-import { toggleBell, toggleSub, toggleWatchlist, useProgress, useSubs, useWatched, useWatchlist } from '../store'
+import { toggleWatchlist, useWatchlist } from '../store'
 import { getChannelVideos, getDetails } from '../yt/client'
 import type { Details as DetailsData, Item } from '../yt/types'
-import { ArrowLeft, BellIcon, BookmarkIcon, CheckCircleIcon, ClockIcon, EyeIcon, HomeIcon, PlayIcon, SearchIcon, UserCheckIcon, UserPlusIcon } from './icons'
+import { ArrowLeft, BookmarkIcon, ClockIcon, HomeIcon, PlayIcon, SearchIcon, UploadIcon } from './icons'
+import { isViewCount } from './cardSub'
 import { CoverPreview } from './Hero'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { useRowSnap } from './useRowSnap'
+
+const DURATION = /^\d+(:\d{2}){1,2}$/
+
+// "1.3M views · 8 hours ago": the upload date and duration become labels with an upload and a clock icon, the view count is left out; other parts stay plain text.
+function Meta({ text }: { text: string }) {
+  return (
+    <span className="details-meta">
+      {text.split(' · ').filter((m) => !isViewCount(m)).map((m) =>
+        /\bago\b/i.test(m) ? (
+          <span key={m} className="hero-label">
+            <UploadIcon /> {m}
+          </span>
+        ) : DURATION.test(m) ? (
+          <span key={m} className="hero-label">
+            <ClockIcon /> {m}
+          </span>
+        ) : (
+          <span key={m}>{m}</span>
+        ),
+      )}
+    </span>
+  )
+}
 
 type Props = { item: Item; active: boolean; onPlay: (i: Item) => void; onOpen: (i: Item) => void; onClose: () => void; onTab: (t: Tab) => void }
 
 export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props) {
   const [data, setData] = useState<DetailsData>()
   const [more, setMore] = useState<Item[]>([])
+  const [failed, setFailed] = useState(false)
   const rows = useRef<HTMLDivElement>(null)
+  const desc = useRef<HTMLDivElement>(null)
   const playBtn = useRef<HTMLButtonElement>(null)
   const watchlist = useWatchlist()
-  const progress = useProgress()[item.id]
-  const watched = useWatched()[item.id]
-  const status = progress ? 'progress' : watched ? 'watched' : 'new'
-  const label = { progress: `In progress · ${Math.round((progress?.pos ?? 0) / (progress?.dur || 1) * 100)}%`, watched: 'Watched', new: 'Not watched' }[status]
-  const sub = useSubs()[data?.channel?.id ?? '']
   const saved = watchlist.some((i) => i.id === item.id)
 
   useEffect(() => {
     let alive = true
     setData(undefined)
+    setFailed(false)
     setMore([])
     rows.current?.scrollTo({ top: 0 })
     getDetails(item.id).then(
@@ -35,7 +57,7 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         setData(d)
         if (d.channel) getChannelVideos(d.channel.id).then((v) => alive && setMore(v.filter((x) => x.id !== item.id)), () => {})
       },
-      () => {},
+      () => alive && setFailed(true),
     )
     return () => {
       alive = false
@@ -57,8 +79,25 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
 
   const title = data?.title || item.title
   const channel = data?.channel
-  const meta = data?.meta || [item.author, ...(item.meta ?? '').split(' · ')].filter(Boolean).join(' · ')
+  // The details request has no duration; it comes from the card that opened this page.
+  const duration = (item.meta ?? '').split(' · ').find((m) => DURATION.test(m))
+  const base = data?.meta || [item.author, ...(item.meta ?? '').split(' · ')].filter(Boolean).join(' · ')
+  const meta = duration && !base.includes(duration) ? `${duration} · ${base}` : base
   const play = { ...item, title }
+
+  // The description takes whatever height the title and buttons leave; clamp it to the lines that fit and end it with an ellipsis.
+  useLayoutEffect(() => {
+    const el = desc.current
+    if (!el) return
+    const fit = () => {
+      const line = parseFloat(getComputedStyle(el).lineHeight)
+      el.style.setProperty('-webkit-line-clamp', String(Math.max(1, Math.floor(el.clientHeight / line))))
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [data?.description, title])
 
   return (
     <div className="details">
@@ -69,7 +108,6 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
           onError={(e) => ((e.target as HTMLImageElement).src = item.thumb)}
           alt=""
         />
-        {active && <CoverPreview key={item.id} videoId={item.id} leaving={false} />}
         <div className="hero-shade" />
       </div>
       <div className="details-hero">
@@ -85,7 +123,10 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
           </button>
         </div>
         <div className="details-mid">
-          <img className="details-thumb" src={item.thumb} alt="" />
+          <div className="details-thumb">
+            <img src={item.thumb} alt="" />
+            {active && <CoverPreview key={item.id} videoId={item.id} leaving={false} />}
+          </div>
           <div className="details-text">
             <h1>{title}</h1>
             <div className="hero-actions">
@@ -96,59 +137,16 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
                 <BookmarkIcon filled={saved} />
               </button>
               {channel && (
-                <>
-                  <button
-                    className="btn icon"
-                    data-focusable
-                    aria-label={sub ? 'Subscribed' : 'Subscribe'}
-                    aria-pressed={!!sub}
-                    onClick={() => toggleSub(channel.id, { name: channel.name, avatar: channel.avatar })}
-                  >
-                    {sub ? <UserCheckIcon /> : <UserPlusIcon />}
-                  </button>
-                  <button
-                    className="btn icon"
-                    data-focusable
-                    aria-label={sub?.bell ? 'Notifications on' : 'Notifications off'}
-                    aria-pressed={!!sub?.bell}
-                    onClick={() => toggleBell(channel.id, { name: channel.name, avatar: channel.avatar })}
-                  >
-                    <BellIcon filled={!!sub?.bell} />
-                  </button>
-                </>
-              )}
-              <span className={`watch-icon ${status}`} role="img" aria-label={label} title={label}>
-                {status === 'watched' ? <CheckCircleIcon /> : status === 'progress' ? <ClockIcon /> : <EyeIcon />}
-              </span>
-              {channel && (
                 <div className="details-channel">
-                  {meta && <span className="details-meta">{meta}</span>}
+                  {meta && <Meta text={meta} />}
                   {channel.avatar ? <img src={channel.avatar} alt="" /> : <span className="avatar-fallback">{channel.name.slice(0, 1)}</span>}
-                  <div>
-                    <div className="details-channel-name">{channel.name}</div>
-                    {channel.subs && <div className="details-channel-subs">{channel.subs}</div>}
-                  </div>
+                  <div className="details-channel-name">{channel.name}</div>
                 </div>
               )}
-              {!channel && meta && <span className="details-meta">{meta}</span>}
+              {!channel && meta && <Meta text={meta} />}
             </div>
             {data?.description && (
-              <div
-                className="details-desc"
-                tabIndex={0}
-                data-focusable
-                onKeyDown={(e) => {
-                  // Scroll the text with Up/Down while it can still move; otherwise let D-pad navigation take over.
-                  const el = e.currentTarget
-                  const dy = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-                  if (!dy) return
-                  const room = dy > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 0
-                  if (!room) return
-                  e.stopPropagation()
-                  e.preventDefault()
-                  el.scrollBy({ top: dy * 72, behavior: 'smooth' })
-                }}
-              >
+              <div className="details-desc" ref={desc}>
                 {data.description}
               </div>
             )}
@@ -156,11 +154,11 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         </div>
       </div>
       <div className="details-rows" ref={rows}>
-        {!data && <div className="msg">Loading…</div>}
+        {!data && <div className="msg">{failed ? 'Could not load more about this video.' : 'Loading…'}</div>}
         {channel && more.length > 0 && (
-          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} onOpen={onOpen} />
+          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />
         )}
-        {data && data.related.length > 0 && <RowView title="Related" cards={data.related.map((i) => ({ item: i }))} onOpen={onOpen} />}
+        {data && data.related.length > 0 && <RowView title="Related" cards={data.related.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />}
       </div>
     </div>
   )
