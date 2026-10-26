@@ -2,33 +2,19 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
 import { toggleWatchlist, useWatchlist } from '../store'
 import { getChannelVideos, getDetails } from '../yt/client'
+import { newestFirst } from '../yt/age'
 import type { Details as DetailsData, Item } from '../yt/types'
-import { ArrowLeft, BookmarkIcon, ClockIcon, HomeIcon, PlayIcon, SearchIcon, UploadIcon } from './icons'
-import { isViewCount } from './cardSub'
+import { ArrowLeft, BookmarkIcon, HomeIcon, PlayIcon, SearchIcon } from './icons'
 import { CoverPreview } from './Hero'
+import { DURATION, MetaLabels } from './MetaLabels'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { useRowSnap } from './useRowSnap'
 
-const DURATION = /^\d+(:\d{2}){1,2}$/
-
-// "1.3M views · 8 hours ago": the upload date and duration become labels with an upload and a clock icon, the view count is left out; other parts stay plain text.
 function Meta({ text }: { text: string }) {
   return (
     <span className="details-meta">
-      {text.split(' · ').filter((m) => !isViewCount(m)).map((m) =>
-        /\bago\b/i.test(m) ? (
-          <span key={m} className="hero-label">
-            <UploadIcon /> {m}
-          </span>
-        ) : DURATION.test(m) ? (
-          <span key={m} className="hero-label">
-            <ClockIcon /> {m}
-          </span>
-        ) : (
-          <span key={m}>{m}</span>
-        ),
-      )}
+      <MetaLabels text={text} spoken />
     </span>
   )
 }
@@ -55,7 +41,7 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
       (d) => {
         if (!alive) return
         setData(d)
-        if (d.channel) getChannelVideos(d.channel.id).then((v) => alive && setMore(v.filter((x) => x.id !== item.id)), () => {})
+        if (d.channel) getChannelVideos(d.channel.id).then((v) => alive && setMore(newestFirst(v.filter((x) => x.id !== item.id))), () => {})
       },
       () => alive && setFailed(true),
     )
@@ -90,12 +76,17 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
     const el = desc.current
     if (!el) return
     const fit = () => {
+      el.style.maxHeight = 'none'
       const line = parseFloat(getComputedStyle(el).lineHeight)
-      el.style.setProperty('-webkit-line-clamp', String(Math.max(1, Math.floor(el.clientHeight / line))))
+      const lines = Math.max(1, Math.floor(el.clientHeight / line))
+      el.style.setProperty('-webkit-line-clamp', String(lines))
+      // Cap the box at whole lines, or a sliver of the next line shows under the ellipsis.
+      el.style.maxHeight = `${lines * line}px`
     }
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(el)
+    if (el.parentElement) ro.observe(el.parentElement)
     return () => ro.disconnect()
   }, [data?.description, title])
 
@@ -156,9 +147,9 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
       <div className="details-rows" ref={rows}>
         {!data && <div className="msg">{failed ? 'Could not load more about this video.' : 'Loading…'}</div>}
         {channel && more.length > 0 && (
-          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />
+          <RowView title="More from this channel" cards={more.map((i) => ({ item: i }))} arrows={false} labels onOpen={onOpen} />
         )}
-        {data && data.related.length > 0 && <RowView title="Related" cards={data.related.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />}
+        {data && data.related.length > 0 && <RowView title="Related videos" cards={data.related.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />}
       </div>
     </div>
   )

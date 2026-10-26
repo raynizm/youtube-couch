@@ -14,13 +14,15 @@ type RowProps = {
   arrows?: boolean
   /** Endless row: scrolling past the last card carries on with the first. */
   loop?: boolean
+  /** Cards show only duration and upload-date labels under the thumbnail, no title. */
+  labels?: boolean
 }
 
 // Looping needs a set of cards wider than the screen (8 cards at 16rem each is 128rem, a screen is 120rem).
 const MIN_LOOP_CARDS = 8
 const SETTLE_MS = 150
 
-export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, arrows = true, loop = false }: RowProps) {
+export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, arrows = true, loop = false, labels = false }: RowProps) {
   const scroller = useRef<HTMLDivElement>(null)
   const n = cards.length
   const looping = loop && n >= MIN_LOOP_CARDS
@@ -87,7 +89,7 @@ export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, 
         ref={scroller}
         onScroll={looping ? undefined : (e) => e.currentTarget.classList.toggle('scrolled', e.currentTarget.scrollLeft > 8)}
       >
-        {copies.flatMap((copy) => cards.map((c) => <Card key={`${copy}:${c.item.id}`} {...c} onOpen={onOpen} onPreview={onPreview} />))}
+        {copies.flatMap((copy) => cards.map((c) => <Card key={`${copy}:${c.item.id}`} {...c} labels={labels} onOpen={onOpen} onPreview={onPreview} />))}
       </div>
     </section>
   )

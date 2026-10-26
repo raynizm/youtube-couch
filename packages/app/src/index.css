@@ -136,8 +136,19 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .card-title { margin-top: 0.625rem; font-size: var(--t-title); font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* Home rows: a quieter one-line title. */
 .home .card-title { font-size: var(--t-label); display: block; white-space: nowrap; text-overflow: ellipsis; }
+/* Rows that show labels under the title keep the title to a single line. */
+.card-title.one-line { display: block; white-space: nowrap; text-overflow: ellipsis; }
+.card-labels { display: flex; gap: 0.5rem; margin-top: 0.5rem; font-size: var(--t-label); }
+.card-labels .hero-label { background: rgba(0, 0, 0, .5); }
+/* Duration sits at the left edge of the thumbnail, the upload date at the right, even when one is missing. */
+.card-labels .upload { margin-left: auto; }
 .card-sub { margin-top: 0.125rem; font-size: var(--t-label); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card:focus .card-img { box-shadow: 0 0 0 0.1875rem var(--ring); transform: scale(1.03); }
+/* Details rows: thumbnails rest dimmed and light up at full brightness on focus or hover. */
+.details-rows .card-img img { filter: brightness(.35); transition: filter .15s; }
+.details-rows .card:hover .card-img img, .details-rows .card:focus .card-img img { filter: none; }
+.details-rows .card-title, .details-rows .card-sub, .details-rows .card-labels { opacity: .5; transition: opacity .15s; }
+.details-rows .card:hover .card-title, .details-rows .card:hover .card-sub, .details-rows .card:hover .card-labels, .details-rows .card:focus .card-title, .details-rows .card:focus .card-sub, .details-rows .card:focus .card-labels { opacity: 1; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1.5rem 1rem; margin-top: 1.5rem; }
 .grid .card { width: auto; }
@@ -153,9 +164,16 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 
 /* Details: same split as Home — the cover stays put, only the rows below scroll. */
 .details { position: fixed; inset: 0; z-index: 8; background: var(--bg); display: flex; flex-direction: column; }
-.details-hero { position: relative; flex: none; height: 70vh; overflow: hidden; display: flex; flex-direction: column; padding: 5rem 3rem 1.5rem; }
-.details-rows { position: relative; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 transparent; padding-bottom: 3rem; }
-.details-mid { --thumb-w: 48rem; position: relative; z-index: 1; flex: 0 1 auto; align-self: stretch; margin: auto -3rem; min-height: 0; display: flex; align-items: flex-start; justify-content: center; gap: 1.75rem; padding: 2.5rem 3rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); }
+.details-hero { position: relative; flex: none; height: 64vh; overflow: hidden; display: flex; flex-direction: column; padding: 5rem 3rem 1.5rem; }
+.details-rows { --fade-top: 3rem; position: relative; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-top: var(--fade-top);
+  /* Dark panel behind the rows: none at the top, darkest at the bottom. It stays put while the rows scroll. */
+  background: linear-gradient(to top, var(--bg) 20%, rgba(10, 10, 10, .84) 40%, rgba(10, 10, 10, .5) 60%, rgba(10, 10, 10, .16) 80%, rgba(10, 10, 10, 0));
+  /* A row fades out as it scrolls up past the top edge; at rest the first row sits clear of the fade. */
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,.07) 0.5rem, rgba(0,0,0,.26) 1rem, rgba(0,0,0,.5) 1.5rem, rgba(0,0,0,.74) 2rem, rgba(0,0,0,.93) 2.5rem, #000 var(--fade-top)); mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,.07) 0.5rem, rgba(0,0,0,.26) 1rem, rgba(0,0,0,.5) 1.5rem, rgba(0,0,0,.74) 2rem, rgba(0,0,0,.93) 2.5rem, #000 var(--fade-top)); }
+.details-rows::-webkit-scrollbar { display: none; }
+/* One row per page. A fade-height gap follows each row, so a row that has scrolled out is wholly above the visible edge. */
+.details-rows .row { height: calc(100% - var(--fade-top)); margin-bottom: var(--fade-top); }
+.details-mid { --thumb-w: 48rem; position: relative; z-index: 1; flex: 0 1 auto; align-self: stretch; margin: auto -3rem 0; min-height: 0; display: flex; align-items: flex-start; justify-content: center; gap: 1.75rem; padding: 2.5rem 3rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); }
 .details-topbar { position: absolute; top: 1.5rem; left: 2rem; z-index: 2; display: flex; gap: 0.625rem; }
 .details-topbar .player-back { position: static; }
 .details-topbar .round { width: 3rem; height: 3rem; padding: 0; justify-content: center; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .14); border: 0.0625rem solid rgba(255, 255, 255, .18); backdrop-filter: blur(0.75rem); }
