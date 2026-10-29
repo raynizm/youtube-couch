@@ -5,7 +5,8 @@ import { useAuth } from '../yt/auth'
 import { accountHistory, accountPlaylists, HISTORY_SIZE, getPlaylistVideos, subscriptionRows } from '../yt/client'
 import type { Item, Row } from '../yt/types'
 import { Card } from './Card'
-import { ArrowLeft } from './icons'
+import { ArrowLeft, HomeIcon, SearchIcon } from './icons'
+import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { GridSkeleton, RowsSkeleton } from './Skeleton'
 import { useFeed } from './useFeed'
@@ -96,7 +97,7 @@ function CardGrid({ items, labels, upload, onOpen }: { items: Item[]; labels?: b
 }
 
 // Videos of one account playlist, with a Back button. Back key also returns, unless another layer (details, player, sign-in) is on top.
-function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; active: boolean; onBack: () => void; onOpen: (i: Item) => void }) {
+function PlaylistVideos({ playlist, active, onBack, onOpen, onTab }: { playlist: Item; active: boolean; onBack: () => void; onOpen: (i: Item) => void; onTab: (t: Tab) => void }) {
   const fetcher = useCallback(() => getPlaylistVideos(playlist.id), [playlist.id])
   const { data, error } = useFeed(fetcher, playlist.id)
 
@@ -108,10 +109,18 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
   }, [active, onBack])
 
   return (
-    <div className="screen padded top lit-grid history">
-      <button className="player-back" data-focusable aria-label="Back" onClick={onBack}>
-        <ArrowLeft /> Back
-      </button>
+    <div className="screen padded top lit-grid history playlist-videos">
+      <div className="details-topbar">
+        <button className="player-back" data-focusable aria-label="Back" onClick={onBack}>
+          <ArrowLeft /> Back
+        </button>
+        <button className="round" data-focusable aria-label="Home" onClick={() => onTab('home')}>
+          <HomeIcon />
+        </button>
+        <button className="round" data-focusable aria-label="Search" onClick={() => onTab('search')}>
+          <SearchIcon />
+        </button>
+      </div>
       <h2 className="playlist-title">{playlist.title}</h2>
       {error ? (
         <div className="msg">Failed to load: {error}</div>
@@ -126,12 +135,12 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
   )
 }
 
-function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: Item) => void }) {
+function SignedInPlaylists({ active, onOpen, onTab }: { active: boolean; onOpen: (i: Item) => void; onTab: (t: Tab) => void }) {
   const { data, error } = useFeed(accountPlaylists, useAuth().feedKey)
   const [opened, setOpened] = useState<Item>()
   const back = useCallback(() => setOpened(undefined), [])
 
-  if (opened) return <PlaylistVideos playlist={opened} active={active} onBack={back} onOpen={onOpen} />
+  if (opened) return <PlaylistVideos playlist={opened} active={active} onBack={back} onOpen={onOpen} onTab={onTab} />
   return (
     <div className="screen padded top lit-grid">
       {error ? (
@@ -149,9 +158,9 @@ function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: It
 
 // Account playlists, which open in place.
 // `active` is false while an overlay (details, player, sign-in) owns the Back key.
-export function Playlists({ onOpen, active = true }: { onOpen: (i: Item) => void; active?: boolean }) {
+export function Playlists({ onOpen, onTab, active = true }: { onOpen: (i: Item) => void; onTab: (t: Tab) => void; active?: boolean }) {
   if (!useAuth().signedIn) return <SignInNotice what="playlists" />
-  return <SignedInPlaylists active={active} onOpen={onOpen} />
+  return <SignedInPlaylists active={active} onOpen={onOpen} onTab={onTab} />
 }
 
 // Centred in the middle of the screen: a heading and a hint.

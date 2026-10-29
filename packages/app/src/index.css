@@ -126,8 +126,10 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .padded .row { padding-left: 0; padding-right: 0; }
 .row .msg { padding: 2rem 0; text-align: left; }
 .playlist-title { margin: 0; font-size: var(--t-head); font-weight: 700; text-wrap: balance; }
+/* An opened playlist has no tab bar; Back leads out. */
+:root:has(.playlist-videos) .nav { display: none; }
 /* Same spot as on the details screen, and it stays there while the page scrolls. */
-.padded > .player-back { position: fixed; z-index: 6; }
+.padded > .details-topbar { position: fixed; z-index: 6; }
 
 /* Cards */
 .card { flex: none; width: 15rem; display: flex; flex-direction: column; align-items: stretch; gap: 0; }
@@ -144,7 +146,7 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .card-play { position: absolute; top: 50%; left: 50%; width: 3.5rem; height: 3.5rem; margin: -1.75rem 0 0 -1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(0, 0, 0, .5); border: 0.0625rem solid rgba(255, 255, 255, .25); backdrop-filter: blur(0.5rem); -webkit-backdrop-filter: blur(0.5rem); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; pointer-events: none; }
 .card-play svg { width: 1.5rem; height: 1.5rem; margin-left: 0.1875rem; }
 .card:hover .card-play, .card:focus .card-play { opacity: 1; transform: none; }
-:is(.lit-grid, .subs-rows) .card-play { display: none; }
+:is(.lit-grid, .subs-rows, .home-rows) .card-play { display: none; }
 /* History, playlist videos and Subscriptions show the duration as plain text, without a pill; Subscriptions does the same for the upload date. */
 :is(.history, .subs-rows) .card-labels .hero-label:not(.upload), .subs-rows .card-labels .upload { background: none; padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .card-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 0.25rem; background: #ffffff33; }
@@ -300,4 +302,4 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 /* Real cards are buttons and carry the browser's button padding; the placeholder cards are divs and need the same inset. */
 .skel-ghost .card { padding: 0.0625rem 0.375rem; }
 /* Clock: top-right on every screen but playback, above the Details screen. */
-.clock { position: fixed; top: 1.5rem; right: 0; z-index: 9; height: 3rem; display: flex; align-items: center; padding: 0 2.5rem 0 1rem; border-radius: 0.5rem 0 0 0.5rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); font-family: "Google Sans Flex", sans-serif; font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0.0625rem 0.375rem #000; pointer-events: none; }
+.clock { position: fixed; top: 1.5rem; right: 0; z-index: 9; height: 3rem; display: flex; align-items: center; padding: 0 2.5rem 0 1rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); font-family: "Google Sans Flex", sans-serif; font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0.0625rem 0.375rem #000; pointer-events: none; }

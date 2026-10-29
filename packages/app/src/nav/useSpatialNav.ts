@@ -17,7 +17,8 @@ export function useSpatialNav(enabled = true) {
       // An open modal owns the D-pad, then a full-screen page (Details) covering the tabs: only its own controls are reachable.
       const modals = document.querySelectorAll('[data-modal]')
       const scope = modals[modals.length - 1] ?? document.querySelector('[data-screen]') ?? document
-      const els = Array.from(scope.querySelectorAll<HTMLElement>('[data-focusable]'))
+      // Hidden controls (the tab bar inside an opened playlist) cannot take focus.
+      const els = Array.from(scope.querySelectorAll<HTMLElement>('[data-focusable]')).filter((el) => el.getClientRects().length > 0)
       if (!els.length) return
       e.preventDefault()
       if (!active || !els.includes(active)) return (scope.querySelector<HTMLElement>('[data-default]') ?? els[0]).focus()
