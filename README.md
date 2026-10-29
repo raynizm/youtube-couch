@@ -75,3 +75,7 @@ On the TV, open TizenBrew, choose Add Module, enter `npm/youtube-couch-tizen`, t
 
 - Browsers cannot call YouTube directly. The dev and preview servers proxy allowed hosts (`youtube.com`, `googlevideo.com`, `ytimg.com`, `sponsor.ajay.app`) through `/__proxy`. TV wrappers handle this natively (Android WebView request interception, Tizen access rules).
 - Build uses a relative base so the bundle loads from `file://` (Tizen `.wgt`, Android assets).
+
+## License
+
+[MIT](LICENSE)

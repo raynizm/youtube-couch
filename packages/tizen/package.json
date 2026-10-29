@@ -11,7 +11,7 @@
   "scripts": {
     "build": "node scripts/build.mjs"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/raynizm/youtube-couch.git" },
-  "keywords": ["tizenbrew", "youtube", "tv", "samsung", "tizen"]
+  "keywords": ["youtube", "samsung", "tizen", "tizenbrew"]
 }

@@ -1,6 +1,7 @@
 {
   "name": "youtube-couch",
   "private": true,
+  "license": "MIT",
   "workspaces": ["packages/*"],
   "scripts": {
     "dev": "bun run --filter @youtube-couch/app dev",
