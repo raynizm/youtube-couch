@@ -139,12 +139,13 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 /* Rows that show labels under the title keep the title to a single line. */
 .card-title.one-line { display: block; white-space: nowrap; text-overflow: ellipsis; }
 .card-labels { display: flex; gap: 0.5rem; margin-top: 0.5rem; font-size: var(--t-label); }
-.card-labels .hero-label { background: rgba(0, 0, 0, .5); }
+.card-labels .hero-label { background: rgba(0, 0, 0, .5); white-space: nowrap; }
 /* Duration sits at the left edge of the thumbnail, the upload date at the right, even when one is missing. */
 .card-labels .upload { margin-left: auto; }
 .card-sub { margin-top: 0.125rem; font-size: var(--t-label); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card:focus .card-img { box-shadow: 0 0 0 0.1875rem var(--ring); transform: scale(1.03); }
 /* Details rows: thumbnails rest dimmed and light up at full brightness on focus or hover. */
+.details-rows .card-img, .details-rows .skel.card-img { border-radius: 0; }
 .details-rows .card-img img { filter: brightness(.35); transition: filter .15s; }
 .details-rows .card:hover .card-img img, .details-rows .card:focus .card-img img { filter: none; }
 .details-rows .card-title, .details-rows .card-sub, .details-rows .card-labels { opacity: .5; transition: opacity .15s; }
@@ -182,7 +183,7 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .details-topbar .round svg { width: 1.375rem; height: 1.375rem; }
 /* Always 16:9 and pinned to the top edge; on a taller screen the canvas shows below it. */
 .details-backdrop { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 16 / 9; overflow: hidden; }
-.details-backdrop .hero-img { filter: brightness(.35); }
+.details-backdrop { background: radial-gradient(ellipse at 20% 0%, #3a4fa0 0%, #29307a 40%, #140f33 100%); }
 .details-thumb { position: relative; flex: none; width: var(--thumb-w); aspect-ratio: 16 / 9; overflow: hidden; box-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, .6); }
 .details-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .details-text { min-width: 0; max-width: 48.75rem; width: 48.75rem; height: calc(var(--thumb-w) * 9 / 16); display: flex; flex-direction: column; }
@@ -254,3 +255,23 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .profile-avatar { width: 7rem; height: 7rem; border-radius: 50%; object-fit: cover; background: var(--card); font-size: 2.75rem; }
 .profile-name { font-size: var(--t-body); font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-byline { font-size: var(--t-label); color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Skeleton: placeholder blocks with a slow light sweep, shown on Details until everything is ready. */
+.skel, .skel-ink, .skel-ghost .hero-label { border-radius: 0.5rem; background: rgba(255, 255, 255, .08) linear-gradient(90deg, transparent, rgba(255, 255, 255, .1), transparent) no-repeat; background-size: 50% 100%; animation: skel 1.6s ease-in-out infinite; }
+@keyframes skel { from { background-position: -100% 0; } to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel, .skel-ink, .skel-ghost .hero-label { animation: none; } }
+/* Ghost text: laid out exactly like the real text, drawn as a block instead. */
+.skel-ink { color: transparent; border-radius: 0.25rem; -webkit-box-decoration-break: clone; box-decoration-break: clone; user-select: none; }
+.skel-ghost .hero-label { color: transparent; }
+.skel-ghost .hero-label svg { opacity: 0; }
+.skel-ghost .details-meta { border-right-color: transparent; }
+.skel-thumb { width: 100%; height: 100%; border-radius: 0; }
+.skel-round { flex: none; width: 2.75rem; height: 2.75rem; border-radius: 50%; }
+/* Description lines sit on the real line pitch; rows that do not fit wrap into a hidden second column, so only whole lines show. */
+.skel-desc { flex: 1 1 0; min-height: 0; overflow: hidden; margin-top: 1.125rem; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; }
+.skel-row { flex: none; width: 100%; height: calc(var(--t-body) * 1.55); display: flex; align-items: center; }
+.skel-row .skel { height: 1.125rem; }
+/* Real cards are buttons and carry the browser's button padding; the placeholder cards are divs and need the same inset. */
+.skel-ghost .card { padding: 0.0625rem 0.375rem; }
+/* Clock: top-right on Home and Details, above the Details screen. */
+.clock { position: fixed; top: 1.5rem; right: 0; z-index: 9; height: 3rem; display: flex; align-items: center; padding: 0 2.5rem 0 1rem; border-radius: 0.5rem 0 0 0.5rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); font-family: "Google Sans Flex", sans-serif; font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0.0625rem 0.375rem #000; pointer-events: none; }

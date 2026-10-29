@@ -19,12 +19,89 @@ function Meta({ text }: { text: string }) {
   )
 }
 
+// Hidden text that takes the exact space of the real text and shows as a skeleton block, so nothing shifts when the content arrives.
+function Ink({ children }: { children: string }) {
+  return <span className="skel-ink">{children}</span>
+}
+
+// Same markup and classes as the loaded screen, with placeholders in place of the content, shown until the whole screen can appear at once.
+function TextSkeleton({ title, author, meta }: { title: string; author: string; meta: string }) {
+  return (
+    <div className="details-text skel-ghost" aria-hidden>
+      <h1>
+        <Ink>{title}</Ink>
+      </h1>
+      <div className="hero-actions">
+        <div className="skel skel-round" />
+        <div className="skel skel-round" />
+        <div className="details-channel">
+          {meta && <Meta text={meta} />}
+          <div className="skel skel-round" />
+          <div className="details-channel-name">
+            <Ink>{author}</Ink>
+          </div>
+        </div>
+      </div>
+      <div className="skel-desc">
+        {[100, 96, 70, 0, 92, 100, 64, 0, 98, 88, 100, 60, 94, 100, 72].map((w, i) => (
+          <div key={i} className="skel-row">
+            {w > 0 && <div className="skel" style={{ width: `${w}%` }} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function RowsSkeleton({ author }: { author: string }) {
+  return (
+    <div className="skel-ghost" aria-hidden>
+      {[{ title: author ? `More from ${author}` : 'More from this channel', labels: true }, { title: 'Related videos', labels: false }].map((r) => (
+        <section key={r.title} className="row">
+          <div className="row-head">
+            <h2>
+              <Ink>{r.title}</Ink>
+            </h2>
+          </div>
+          <div className="row-items">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="card">
+                <div className="skel card-img" />
+                {r.labels ? (
+                  <>
+                    <span className="card-title one-line">
+                      <Ink>Placeholder video title</Ink>
+                    </span>
+                    <span className="card-labels">
+                      <MetaLabels text="12:34 · 3 weeks ago" />
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="card-title">
+                      <Ink>Placeholder related video title that runs onto a second line</Ink>
+                    </span>
+                    <span className="card-sub">
+                      <Ink>Channel name · 1.2M views</Ink>
+                    </span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 type Props = { item: Item; active: boolean; onPlay: (i: Item) => void; onOpen: (i: Item) => void; onClose: () => void; onTab: (t: Tab) => void }
 
 export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props) {
   const [data, setData] = useState<DetailsData>()
   const [more, setMore] = useState<Item[]>([])
   const [failed, setFailed] = useState(false)
+  const [moreDone, setMoreDone] = useState(false)
   const rows = useRef<HTMLDivElement>(null)
   const desc = useRef<HTMLDivElement>(null)
   const playBtn = useRef<HTMLButtonElement>(null)
@@ -36,12 +113,17 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
     setData(undefined)
     setFailed(false)
     setMore([])
+    setMoreDone(false)
     rows.current?.scrollTo({ top: 0 })
     getDetails(item.id).then(
       (d) => {
         if (!alive) return
         setData(d)
-        if (d.channel) getChannelVideos(d.channel.id).then((v) => alive && setMore(newestFirst(v.filter((x) => x.id !== item.id))), () => {})
+        if (!d.channel) return setMoreDone(true)
+        getChannelVideos(d.channel.id).then(
+          (v) => alive && (setMore(newestFirst(v.filter((x) => x.id !== item.id))), setMoreDone(true)),
+          () => alive && setMoreDone(true),
+        )
       },
       () => alive && setFailed(true),
     )
@@ -50,11 +132,14 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
     }
   }, [item.id])
 
-  useRowSnap(rows, !!data)
+  // Nothing but the skeleton shows until the details and the channel row are in; a failed request shows what we have.
+  const ready = failed || (!!data && moreDone)
+
+  useRowSnap(rows, ready)
 
   useEffect(() => {
-    if (active) playBtn.current?.focus()
-  }, [active, item.id])
+    if (active && ready) playBtn.current?.focus()
+  }, [active, item.id, ready])
 
   useEffect(() => {
     if (!active) return
@@ -88,17 +173,11 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
     ro.observe(el)
     if (el.parentElement) ro.observe(el.parentElement)
     return () => ro.disconnect()
-  }, [data?.description, title])
+  }, [data?.description, title, ready])
 
   return (
-    <div className="details">
-      <div className="details-backdrop">
-        <img
-          className="hero-img"
-          src={`https://i.ytimg.com/vi/${item.id}/maxresdefault.jpg`}
-          onError={(e) => ((e.target as HTMLImageElement).src = item.thumb)}
-          alt=""
-        />
+    <div className="details" data-screen>
+      <div className="details-backdrop" aria-hidden>
         <div className="hero-shade" />
       </div>
       <div className="details-hero">
@@ -115,41 +194,52 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         </div>
         <div className="details-mid">
           <div className="details-thumb">
-            <img src={item.thumb} alt="" />
-            {active && <CoverPreview key={item.id} videoId={item.id} leaving={false} />}
-          </div>
-          <div className="details-text">
-            <h1>{title}</h1>
-            <div className="hero-actions">
-              <button ref={playBtn} className="btn icon" data-focusable aria-label="Play" onClick={() => onPlay(play)}>
-                <PlayIcon />
-              </button>
-              <button className="btn icon" data-focusable aria-label="Watchlist" onClick={() => toggleWatchlist(play)}>
-                <BookmarkIcon filled={saved} />
-              </button>
-              {channel && (
-                <div className="details-channel">
-                  {meta && <Meta text={meta} />}
-                  {channel.avatar ? <img src={channel.avatar} alt="" /> : <span className="avatar-fallback">{channel.name.slice(0, 1)}</span>}
-                  <div className="details-channel-name">{channel.name}</div>
-                </div>
-              )}
-              {!channel && meta && <Meta text={meta} />}
-            </div>
-            {data?.description && (
-              <div className="details-desc" ref={desc}>
-                {data.description}
-              </div>
+            {ready ? (
+              <>
+                <img src={item.thumb} alt="" />
+                {active && <CoverPreview key={item.id} videoId={item.id} leaving={false} />}
+              </>
+            ) : (
+              <div className="skel skel-thumb" aria-hidden />
             )}
           </div>
+          {ready ? (
+            <div className="details-text">
+              <h1>{title}</h1>
+              <div className="hero-actions">
+                <button ref={playBtn} className="btn icon" data-focusable data-default aria-label="Play" onClick={() => onPlay(play)}>
+                  <PlayIcon />
+                </button>
+                <button className="btn icon" data-focusable aria-label="Watchlist" onClick={() => toggleWatchlist(play)}>
+                  <BookmarkIcon filled={saved} />
+                </button>
+                {channel && (
+                  <div className="details-channel">
+                    {meta && <Meta text={meta} />}
+                    {channel.avatar ? <img src={channel.avatar} alt="" /> : <span className="avatar-fallback">{channel.name.slice(0, 1)}</span>}
+                    <div className="details-channel-name">{channel.name}</div>
+                  </div>
+                )}
+                {!channel && meta && <Meta text={meta} />}
+              </div>
+              {data?.description && (
+                <div className="details-desc" ref={desc}>
+                  {data.description}
+                </div>
+              )}
+            </div>
+          ) : (
+            <TextSkeleton title={title} author={item.author ?? ''} meta={meta} />
+          )}
         </div>
       </div>
       <div className="details-rows" ref={rows}>
-        {!data && <div className="msg">{failed ? 'Could not load more about this video.' : 'Loading…'}</div>}
-        {channel && more.length > 0 && (
-          <RowView title="More from this channel" cards={more.map((i) => ({ item: i }))} arrows={false} labels onOpen={onOpen} />
+        {!ready && <RowsSkeleton author={item.author ?? ''} />}
+        {failed && <div className="msg">Could not load more about this video.</div>}
+        {ready && channel && more.length > 0 && (
+          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} loop labels onOpen={onOpen} />
         )}
-        {data && data.related.length > 0 && <RowView title="Related videos" cards={data.related.map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />}
+        {ready && data && data.related.length > 0 && <RowView title="Related videos" cards={data.related.map((i) => ({ item: i }))} arrows={false} loop onOpen={onOpen} />}
       </div>
     </div>
   )
