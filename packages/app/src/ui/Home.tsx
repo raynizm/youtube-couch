@@ -5,6 +5,7 @@ import { useAuth } from '../yt/auth'
 import { Hero } from './Hero'
 import { useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
+import { newestFirst } from '../yt/age'
 import { RowView } from './RowView'
 
 export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i: Item) => void }) {
@@ -30,7 +31,7 @@ export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i
   useRowSnap(box, !!rows)
 
   const heroItems = useMemo(() => (rows ?? []).flatMap((r) => r.items.slice(0, 2)).slice(0, 6), [rows])
-  const cardRows = useMemo(() => (rows ?? []).map((r) => ({ title: r.title, cards: r.items.map((item) => ({ item })) })), [rows])
+  const cardRows = useMemo(() => (rows ?? []).map((r) => ({ title: r.title, cards: newestFirst(r.items).map((item) => ({ item })) })), [rows])
 
   if (error) return <div className="msg">Failed to load: {error}</div>
   if (!rows) return <div className="msg">Loading…</div>
