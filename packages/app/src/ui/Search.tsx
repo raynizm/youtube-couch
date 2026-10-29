@@ -4,8 +4,8 @@ import type { Item } from '../yt/types'
 import { Card } from './Card'
 import { SearchIcon } from './icons'
 import { GridSkeleton } from './Skeleton'
-import { MIN_SKELETON_MS, wait } from './useFeed'
-import { gridPosition, useLastRowLoader } from './useLastRowLoader'
+import { gridPosition } from './useLastRowLoader'
+import { usePagedFeed } from './usePagedFeed'
 
 // Category tiles mirror Pelagica's genre grid; each runs a search.
 const CATEGORIES = ['Music', 'Gaming', 'News', 'Live', 'Podcasts', 'Movies', 'Science', 'Technology', 'Cooking', 'Sports', 'Comedy', 'Documentary']
@@ -14,24 +14,11 @@ const RESULT_COUNT = 24
 
 export function Search({ onOpen }: { onOpen: (i: Item) => void }) {
   const [q, setQ] = useState('')
-  const [items, setItems] = useState<Item[]>()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>()
+  const { items, loading, error, loadingMore, onFocus, start } = usePagedFeed(RESULT_COUNT)
 
   const input = useRef<HTMLInputElement>(null)
-  const feed = useRef<ReturnType<typeof searchFeed>>(undefined)
 
-  const run = (query: string) => {
-    if (!query.trim()) return
-    setLoading(true)
-    setError(undefined)
-    const f = (feed.current = searchFeed(query))
-    // Hold the skeleton for at least MIN_SKELETON_MS, even when the answer is fast.
-    Promise.all([f.next(RESULT_COUNT), wait(MIN_SKELETON_MS)]).then(
-      ([r]) => feed.current === f && (setItems(r), setLoading(false)),
-      (e) => feed.current === f && (setError(String(e.message ?? e)), setLoading(false)),
-    )
-  }
+  const run = (query: string) => query.trim() && start(searchFeed(query))
 
   // Up from the first row of results goes straight to the search bar. The general rule would pick the nearest control by
   // position, which for cards outside the bar's width is a tab in the nav bar, or a card scrolled out of view above.
@@ -43,16 +30,6 @@ export function Search({ onOpen }: { onOpen: (i: Item) => void }) {
     e.stopPropagation()
     input.current?.focus()
   }
-
-  const { loadingMore, onFocus } = useLastRowLoader(
-    items?.length ?? 0,
-    () => !!feed.current && !feed.current.done,
-    async (count) => {
-      const f = feed.current
-      const more = (await f?.next(count)) ?? []
-      if (feed.current === f) setItems((cur) => [...(cur ?? []), ...more])
-    },
-  )
 
   return (
     <div className="screen padded search lit-grid history">

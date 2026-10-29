@@ -9,11 +9,9 @@ import { ArrowLeft, HomeIcon, SearchIcon } from './icons'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { GridSkeleton, RowsSkeleton } from './Skeleton'
-import { MIN_SKELETON_MS, useFeed, wait } from './useFeed'
-import { useLastRowLoader } from './useLastRowLoader'
+import { MIN_SKELETON_MS, useFeed } from './useFeed'
+import { type Feed, usePagedFeed } from './usePagedFeed'
 import { useRowSnap } from './useRowSnap'
-
-type Feed = { done: boolean; next: (count: number) => Promise<Item[]> }
 
 /** A feed over a list already in hand, handed out in pages. */
 const listFeed = (all: Item[]): Feed => {
@@ -28,35 +26,14 @@ const listFeed = (all: Item[]): Feed => {
 
 // Watch history: the latest HISTORY_SIZE videos, then two more rows whenever focus reaches the last row.
 function HistoryGrid({ make, feedKey, empty, onOpen }: { make: () => Feed; feedKey: unknown; empty: string; onOpen: (i: Item) => void }) {
-  const [items, setItems] = useState<Item[]>()
-  const [error, setError] = useState<string>()
-  const feed = useRef<Feed>(undefined)
+  const { items, loading, error, loadingMore, onFocus, start } = usePagedFeed(HISTORY_SIZE)
 
-  useEffect(() => {
-    const f = (feed.current = make())
-    setItems(undefined)
-    setError(undefined)
-    // Hold the skeleton for at least MIN_SKELETON_MS, even when the answer is fast.
-    Promise.all([f.next(HISTORY_SIZE), wait(MIN_SKELETON_MS)]).then(
-      ([r]) => feed.current === f && setItems(r),
-      (e) => feed.current === f && setError(String(e?.message ?? e)),
-    )
-  }, [feedKey])
-
-  const { loadingMore, onFocus } = useLastRowLoader(
-    items?.length ?? 0,
-    () => !!feed.current && !feed.current.done,
-    async (count) => {
-      const f = feed.current
-      const more = (await f?.next(count)) ?? []
-      if (feed.current === f) setItems((cur) => [...(cur ?? []), ...more])
-    },
-  )
+  useEffect(() => start(make()), [feedKey])
 
   if (error) return <div className="msg">Failed to load: {error}</div>
   return (
     <div className="screen padded top lit-grid history" onFocus={onFocus}>
-      {!items ? (
+      {loading || !items ? (
         <GridSkeleton labels />
       ) : (
         <>
