@@ -5,13 +5,14 @@ export function Ink({ children }: { children: string }) {
   return <span className="skel-ink">{children}</span>
 }
 
-export function RowsSkeleton({ rows, spoken = false }: { rows: { title: string; labels: boolean }[]; spoken?: boolean }) {
+export function RowsSkeleton({ rows, spoken = false, avatars = false }: { rows: { title: string; labels: boolean }[]; spoken?: boolean; avatars?: boolean }) {
   return (
     <div className="skel-ghost" aria-hidden>
       {rows.map((r) => (
         <section key={r.title} className="row">
           <div className="row-head">
             <h2>
+              {avatars && <span className="skel row-avatar" />}
               <Ink>{r.title}</Ink>
             </h2>
           </div>

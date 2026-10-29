@@ -50,6 +50,9 @@ function TextSkeleton({ title, author, meta }: { title: string; author: string; 
   )
 }
 
+// Each row under the video shows this many videos.
+const ROW_SIZE = 10
+
 type Props = { item: Item; active: boolean; onPlay: (i: Item) => void; onOpen: (i: Item) => void; onClose: () => void; onTab: (t: Tab) => void }
 
 export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props) {
@@ -76,7 +79,7 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         setData(d)
         if (!d.channel) return setMoreDone(true)
         getChannelVideos(d.channel.id).then(
-          (v) => alive && (setMore(newestFirst(v.filter((x) => x.id !== item.id))), setMoreDone(true)),
+          (v) => alive && (setMore(newestFirst(v.filter((x) => x.id !== item.id)).slice(0, ROW_SIZE)), setMoreDone(true)),
           () => alive && setMoreDone(true),
         )
       },
@@ -199,9 +202,9 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         {!ready && <RowsSkeleton rows={[{ title: item.author ? `More from ${item.author}` : 'More from this channel', labels: true }, { title: 'Related videos', labels: false }]} />}
         {failed && <div className="msg">Could not load more about this video.</div>}
         {ready && channel && more.length > 0 && (
-          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} loop labels onOpen={onOpen} />
+          <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} labels onOpen={onOpen} />
         )}
-        {ready && data && data.related.length > 0 && <RowView title="Related videos" cards={data.related.map((i) => ({ item: i }))} arrows={false} loop onOpen={onOpen} />}
+        {ready && data && data.related.length > 0 && <RowView title="Related videos" cards={data.related.slice(0, ROW_SIZE).map((i) => ({ item: i }))} arrows={false} onOpen={onOpen} />}
       </div>
     </div>
   )

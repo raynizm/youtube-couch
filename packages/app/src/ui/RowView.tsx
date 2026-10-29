@@ -7,6 +7,8 @@ export type CardInfo = { item: Item; progress?: number; subtitle?: string }
 
 type RowProps = {
   title: string
+  /** Channel avatar shown before the title; an empty string shows the title's first letter instead. */
+  avatar?: string
   cards: CardInfo[]
   onOpen: (i: Item) => void
   onPreview?: (i: Item) => void
@@ -24,7 +26,7 @@ type RowProps = {
 const MIN_LOOP_CARDS = 8
 const SETTLE_MS = 150
 
-export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, arrows = true, loop = false, labels = false, spoken = false }: RowProps) {
+export const RowView = memo(function RowView({ title, avatar, cards, onOpen, onPreview, arrows = true, loop = false, labels = false, spoken = false }: RowProps) {
   const scroller = useRef<HTMLDivElement>(null)
   const n = cards.length
   const looping = loop && n >= MIN_LOOP_CARDS
@@ -74,7 +76,10 @@ export const RowView = memo(function RowView({ title, cards, onOpen, onPreview, 
   return (
     <section className="row">
       <div className="row-head">
-        <h2>{title}</h2>
+        <h2>
+          {avatar !== undefined && (avatar ? <img className="row-avatar" src={avatar} alt="" /> : <span className="row-avatar">{title.slice(0, 1)}</span>)}
+          {title}
+        </h2>
         {arrows && (
           <div className="row-arrows">
             <button className="icon-btn" aria-label="Previous" tabIndex={-1} onClick={() => by(-1)}>

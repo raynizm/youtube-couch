@@ -116,7 +116,8 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 /* Rows */
 .row { padding: 0.75rem 3rem 0.5rem; }
 .row-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.625rem; }
-.row-head h2 { margin: 0; text-wrap: balance; font-size: var(--t-head); font-weight: 700; }
+.row-avatar { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 50%; object-fit: cover; background: var(--card); display: inline-flex; align-items: center; justify-content: center; font-size: var(--t-label); font-weight: 600; }
+.row-head h2 { display: flex; align-items: center; gap: 0.75rem; margin: 0; text-wrap: balance; font-size: var(--t-head); font-weight: 700; }
 .row-arrows { display: flex; gap: 0.5rem; }
 .icon-btn { width: 2.75rem; height: 2rem; justify-content: center; border: 0.0625rem solid var(--border); border-radius: 62.4375rem; background: var(--card); color: var(--muted); }
 .row-items { display: flex; gap: 1rem; overflow-x: auto; padding: 0.375rem 0.5rem 0.75rem; margin: 0 -0.5rem; scrollbar-width: none; scroll-behavior: smooth; }
@@ -179,10 +180,12 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .searchbar input::placeholder { color: var(--muted); opacity: 1; }
 .searchbar input { flex: 1; background: none; border: 0; color: var(--text); font: inherit; font-size: var(--t-title); outline: none; }
 /* The search bar stays put; only the tiles or results below it scroll. */
-.search { height: 100%; display: flex; flex-direction: column; padding-bottom: 0; }
-.search-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; margin: 0 -3rem; padding: 0.5rem 3rem 4rem; }
+.search { position: relative; height: 100%; display: flex; flex-direction: column; padding-top: 0; padding-bottom: 0; }
+/* The bar floats over the scroller, which runs up behind it and the nav, like History. */
+.search .searchbar { position: absolute; z-index: 3; top: 6rem; left: 3rem; right: 3rem; margin: 0 auto; }
+.search-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; margin: 0 -3rem; padding: 10.25rem 3rem 4rem; }
 .search-body { scroll-behavior: smooth; }
-.search .card { scroll-margin: 1rem 0 6rem; }
+.search .card { scroll-margin: 10rem 0 6rem; }
 .search-body::-webkit-scrollbar { display: none; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(16.25rem, 1fr)); gap: 1rem; }
 .tile { height: 10.25rem; padding: 1rem 1.25rem; border: 0.0625rem solid var(--border); align-items: flex-end; font-size: var(--t-head); font-weight: 700; color: var(--text); background: linear-gradient(135deg, hsl(var(--hue) 55% 36%), hsl(calc(var(--hue) + 40) 60% 14%)); transition: transform .15s; }
@@ -199,9 +202,9 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .details-rows::-webkit-scrollbar { display: none; }
 /* One row per page. A fade-height gap follows each row, so a row that has scrolled out is wholly above the visible edge. */
 .details-rows .row { height: calc(100% - var(--fade-top)); margin-bottom: var(--fade-top); }
-/* Subscriptions reuse the details rows, below the nav; rows size to their content so several show at once. */
-.subs { position: relative; height: 100%; display: flex; flex-direction: column; padding-top: 6.5rem; }
-.subs-rows { background: none; }
+/* Subscriptions reuse the details rows. The scroller runs up behind the nav, whose own fade covers it, like History; rows size to their content so several show at once. */
+.subs { position: relative; height: 100%; display: flex; flex-direction: column; }
+.subs-rows { background: none; padding-top: 6.5rem; -webkit-mask-image: none; mask-image: none; }
 .subs-rows .row { height: auto; margin-bottom: 2rem; }
 .details-mid { --thumb-w: 48rem; position: relative; z-index: 1; flex: 0 1 auto; align-self: stretch; margin: auto -3rem 0; min-height: 0; display: flex; align-items: flex-start; justify-content: center; gap: 1.75rem; padding: 2.5rem 3rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); }
 .details-topbar { position: absolute; top: 1.5rem; left: 2rem; z-index: 2; display: flex; gap: 0.625rem; }
@@ -300,6 +303,7 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .skel-ghost .hero-label svg { opacity: 0; }
 .skel-ghost .details-meta { border-right-color: transparent; }
 .skel-thumb { width: 100%; height: 100%; border-radius: 0; }
+.skel.row-avatar { border-radius: 50%; }
 .skel-round { flex: none; width: 2.75rem; height: 2.75rem; border-radius: 50%; }
 /* Description lines sit on the real line pitch; rows that do not fit wrap into a hidden second column, so only whole lines show. */
 .skel-desc { flex: 1 1 0; min-height: 0; overflow: hidden; margin-top: 1.125rem; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; }

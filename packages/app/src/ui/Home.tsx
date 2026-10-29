@@ -9,6 +9,9 @@ import { newestFirst } from '../yt/age'
 import { RowView } from './RowView'
 import { Ink, RowsSkeleton } from './Skeleton'
 
+// Each row shows this many videos.
+const ROW_SIZE = 10
+
 // Same layout as the loaded screen, with placeholders in place of the cover and rows.
 function HomeSkeleton() {
   return (
@@ -29,7 +32,7 @@ function HomeSkeleton() {
         </div>
       </section>
       <div className="home-rows">
-        <RowsSkeleton rows={[{ title: 'Latest uploads', labels: false }, { title: 'Recommended', labels: false }]} />
+        <RowsSkeleton rows={[{ title: 'Latest videos', labels: false }, { title: 'Recommended videos', labels: false }]} />
       </div>
     </div>
   )
@@ -58,7 +61,7 @@ export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i
   useRowSnap(box, !!rows)
 
   const heroItems = useMemo(() => (rows ?? []).flatMap((r) => r.items.slice(0, 2)).slice(0, 6), [rows])
-  const cardRows = useMemo(() => (rows ?? []).map((r) => ({ title: r.title, cards: newestFirst(r.items).map((item) => ({ item })) })), [rows])
+  const cardRows = useMemo(() => (rows ?? []).map((r) => ({ title: r.title, cards: newestFirst(r.items).slice(0, ROW_SIZE).map((item) => ({ item })) })), [rows])
 
   if (error) return <div className="msg">Failed to load: {error}</div>
   if (!rows) return <HomeSkeleton />
@@ -75,7 +78,7 @@ export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i
         onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && leaveLists()}
       >
         {cardRows.map((r) => (
-          <RowView key={r.title} title={r.title} cards={r.cards} arrows={false} loop onOpen={onOpen} onPreview={preview} />
+          <RowView key={r.title} title={r.title} cards={r.cards} arrows={false} onOpen={onOpen} onPreview={preview} />
         ))}
       </div>
     </div>

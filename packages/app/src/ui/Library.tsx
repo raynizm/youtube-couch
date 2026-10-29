@@ -87,7 +87,7 @@ function ChannelRowsSkeleton() {
   return (
     <div className="screen subs">
       <div className="details-rows subs-rows">
-        <RowsSkeleton rows={['Channel name', 'Another channel', 'Third channel'].map((title) => ({ title, labels: true }))} spoken />
+        <RowsSkeleton rows={['Channel name', 'Another channel', 'Third channel'].map((title) => ({ title, labels: true }))} spoken avatars />
       </div>
     </div>
   )
@@ -101,7 +101,7 @@ function ChannelRows({ rows, onOpen }: { rows: Row[]; onOpen: (i: Item) => void 
     <div className="screen subs">
       <div className="details-rows subs-rows" ref={box}>
         {rows.map((r) => (
-          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} labels spoken onOpen={onOpen} />
+          <RowView key={r.title} title={r.title} avatar={r.avatar ?? ''} cards={r.items.map((item) => ({ item }))} arrows={false} labels spoken onOpen={onOpen} />
         ))}
       </div>
     </div>

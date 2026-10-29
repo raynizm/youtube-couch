@@ -345,10 +345,15 @@ export async function getDetails(videoId: string): Promise<Details> {
   return toDetails((await yt.getInfo(videoId)) as unknown as Raw)
 }
 
-export async function getChannelVideos(channelId: string): Promise<Item[]> {
+async function channelVideos(channelId: string): Promise<{ items: Item[]; avatar?: string }> {
   const yt = await getSession()
   const ch = await (await yt.getChannel(channelId)).getVideos()
-  return toVideos(ch.videos as unknown as Raw[])
+  const avatar = (ch as unknown as Raw).metadata?.avatar?.[0]?.url
+  return { items: toVideos(ch.videos as unknown as Raw[]), avatar: typeof avatar === 'string' ? avatar : undefined }
+}
+
+export async function getChannelVideos(channelId: string): Promise<Item[]> {
+  return (await channelVideos(channelId)).items
 }
 
 export async function getStream(videoId: string): Promise<Stream> {
@@ -448,16 +453,16 @@ function groupByAuthor(items: Item[]): Row[] {
   const by = new Map<string, Item[]>()
   for (const i of items) by.set(i.author ?? 'Other', [...(by.get(i.author ?? 'Other') ?? []), i])
   return [...by]
-    .map(([title, list]) => ({ title, items: newestFirst(list).slice(0, SUB_ROW_SIZE) }))
+    .map(([title, list]) => ({ title, items: newestFirst(list).slice(0, SUB_ROW_SIZE), avatar: list.find((i) => i.authorAvatar)?.authorAvatar }))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
 }
 
 /** Subscribed channels from the web client's FEchannels page, for when the TV response lists none. */
-async function webSubscribedChannels(): Promise<{ id: string; name: string }[]> {
+async function webSubscribedChannels(): Promise<{ id: string; name: string; avatar?: string }[]> {
   try {
     const feed = await (await getSession()).getChannelsFeed()
     return (feed.channels as unknown as Raw[])
-      .map((c) => ({ id: String(c.id ?? c.author?.id ?? ''), name: String(c.author?.name ?? c.title?.text ?? c.title ?? '') }))
+      .map((c) => ({ id: String(c.id ?? c.author?.id ?? ''), name: String(c.author?.name ?? c.title?.text ?? c.title ?? ''), avatar: c.author?.thumbnails?.[0]?.url as string | undefined }))
       .filter((c) => c.id && c.name)
   } catch {
     return []
@@ -508,9 +513,11 @@ export async function subscriptionRows(): Promise<Row[]> {
   if (!channels.length) channels = await webSubscribedChannels()
   if (!channels.length) channels = await channelsOfFeed(feed)
   console.info(`subscriptions: ${channels.length} channels`)
+  const feedAvatar = new Map(feed.flatMap((i) => (i.author && i.authorAvatar ? [[i.author, i.authorAvatar] as const] : [])))
   const rows = await inParallel(channels, async (c): Promise<Row | undefined> => {
-    const items = await getChannelVideos(c.id).then((v) => v.slice(0, SUB_ROW_SIZE), () => [])
-    return items.length ? { title: c.name, items } : undefined
+    const loaded = await channelVideos(c.id).catch(() => undefined)
+    const items = loaded?.items.slice(0, SUB_ROW_SIZE) ?? []
+    return items.length ? { title: c.name, items, avatar: ('avatar' in c ? (c.avatar as string | undefined) : undefined) ?? feedAvatar.get(c.name) ?? loaded?.avatar } : undefined
   })
   const found = rows.filter((r): r is Row => !!r).sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
   return found.length ? found : groupByAuthor(feed)
@@ -606,8 +613,8 @@ export async function curatedHome(signedIn: boolean): Promise<Row[]> {
     settled(search('Music')),
   ])
   return [
-    row('Latest', latest ?? []),
-    row('Recommended', recommended ?? []),
+    row('Latest videos', latest ?? []),
+    row('Recommended videos', recommended ?? []),
     row('Movie trailers', movies ?? []),
     row('Series trailers', series ?? []),
     row('Music', music ?? []),

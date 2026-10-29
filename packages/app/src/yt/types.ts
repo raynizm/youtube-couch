@@ -11,7 +11,7 @@ export type Item = {
   preview?: string
 }
 
-export type Row = { title: string; items: Item[] }
+export type Row = { title: string; items: Item[]; /** Channel avatar, for rows that are one channel's videos. */ avatar?: string }
 
 export type Stream = { url: string; title: string; author?: string }
 
