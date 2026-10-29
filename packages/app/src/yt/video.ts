@@ -3,7 +3,7 @@ import { toVideos } from './items'
 import type { Raw } from './raw'
 import { text } from './raw'
 import { getSession, proxied } from './session'
-import type { Caption, Details, Item, Stream } from './types'
+import type { AdaptiveStream, Caption, Details, Item, MediaTrack, Stream } from './types'
 
 /** Maps a youtubei.js VideoInfo onto the fields the details page shows. */
 export function toDetails(info: Raw): Details {
@@ -51,6 +51,50 @@ export async function getStream(videoId: string): Promise<Stream> {
   const format = sd?.formats?.find((f) => f.url) ?? sd?.formats?.[0]
   if (!format?.url) throw new Error('No playable stream')
   return { url: format.url, title: info.basic_info.title ?? '', author: info.basic_info.author }
+}
+
+const MAX_HEIGHT = 1080
+
+type Format = {
+  url?: string
+  mime_type: string
+  height?: number
+  average_bitrate?: number
+  bitrate: number
+  has_video: boolean
+  has_audio: boolean
+  init_range?: { start: number; end: number }
+  index_range?: { start: number; end: number }
+}
+
+/** The format as a track, when it can be fed to a MediaSource here: a URL, byte ranges for the index, and a codec the browser plays. */
+function toTrack(f: Format): MediaTrack | undefined {
+  if (!f.url || !f.init_range || !f.index_range) return undefined
+  if (typeof MediaSource === 'undefined' || !MediaSource.isTypeSupported(f.mime_type)) return undefined
+  return { url: f.url, mime: f.mime_type, init: f.init_range, index: f.index_range, height: f.height }
+}
+
+const bitrate = (f: Format) => f.average_bitrate ?? f.bitrate
+
+/**
+ * The best H.264 video (up to MAX_HEIGHT) and AAC audio as separate tracks. The IOS client is used because its adaptive URLs need no
+ * cipher handling and work with a locally generated session. Undefined when either track is missing, so the caller falls back to getStream.
+ */
+export async function getAdaptiveStream(videoId: string): Promise<AdaptiveStream | undefined> {
+  const yt = await getSession()
+  const info = await yt.getBasicInfo(videoId, { client: 'IOS' })
+  const formats = (info.streaming_data?.adaptive_formats ?? []) as unknown as Format[]
+  const video = formats
+    .filter((f) => f.has_video && !f.has_audio && f.mime_type.includes('avc1') && (f.height ?? 0) <= MAX_HEIGHT)
+    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || bitrate(b) - bitrate(a))
+    .flatMap((f) => toTrack(f) ?? [])[0]
+  const audio = formats
+    .filter((f) => f.has_audio && !f.has_video && f.mime_type.includes('mp4a'))
+    .sort((a, b) => bitrate(b) - bitrate(a))
+    .flatMap((f) => toTrack(f) ?? [])[0]
+  const duration = info.basic_info.duration
+  if (!video || !audio || !duration) return undefined
+  return { video, audio, duration, title: info.basic_info.title ?? '', author: info.basic_info.author }
 }
 
 /** Subtitle tracks as WebVTT blob URLs. Tries ANDROID first, then WEB, since either may omit captions. */
@@ -110,8 +154,8 @@ export function getPreviewClip(videoId: string): Promise<PreviewClip | undefined
 }
 
 /** Fetches a byte range of a stream through the same route the rest of the app uses. */
-export async function fetchRange(url: string, start: number, end: number): Promise<ArrayBuffer> {
-  const res = await fetch(proxied(url), { headers: { Range: `bytes=${start}-${end}` } })
+export async function fetchRange(url: string, start: number, end: number, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const res = await fetch(proxied(url), { headers: { Range: `bytes=${start}-${end}` }, signal })
   if (!res.ok) throw new Error(`range ${res.status}`)
   return res.arrayBuffer()
 }

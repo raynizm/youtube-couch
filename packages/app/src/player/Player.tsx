@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_CATEGORIES, fetchSegments, findSkip, type Segment } from '../sponsorblock/skip'
-import { getCaptions, getStream } from '../yt/client'
+import { getAdaptiveStream, getCaptions, getStream } from '../yt/client'
 import { getProgress, saveProgress } from '../store'
-import type { Caption, Item, Stream } from '../yt/types'
+import type { AdaptiveStream, Caption, Item, Stream } from '../yt/types'
 import { isBack } from '../nav/useSpatialNav'
 import { ArrowLeft, Back10Icon, Fwd10Icon, PauseIcon, PlayIcon, SubtitlesIcon } from '../ui/icons'
+import { attachAdaptive } from './adaptive'
 
 const HIDE_MS = 3500
 
@@ -23,6 +24,8 @@ export function Player({ item, onClose }: Props) {
   const videoId = item.id
   const video = useRef<HTMLVideoElement>(null)
   const segments = useRef<Segment[]>([])
+  // The separate video and audio tracks give the best picture; the combined stream is the fallback when they cannot be used.
+  const [adaptive, setAdaptive] = useState<AdaptiveStream>()
   const [stream, setStream] = useState<Stream>()
   const [error, setError] = useState<string>()
   const [toast, setToast] = useState<string>()
@@ -34,6 +37,9 @@ export function Player({ item, onClose }: Props) {
   const [time, setTime] = useState({ cur: 0, dur: 0 })
   const [chrome, setChrome] = useState(true)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const ready = !!(adaptive || stream)
+  const title = adaptive?.title ?? stream?.title ?? ''
 
   // Show the back button on any input, hide it again after a quiet moment.
   const wake = () => {
@@ -48,13 +54,24 @@ export function Player({ item, onClose }: Props) {
 
   useEffect(() => {
     let alive = true
-    getStream(videoId).then((s) => alive && setStream(s), (e) => alive && setError(String(e.message ?? e)))
+    const combined = () => getStream(videoId).then((s) => alive && setStream(s), (e) => alive && setError(String(e.message ?? e)))
+    getAdaptiveStream(videoId).then((a) => (a ? alive && setAdaptive(a) : combined()), () => combined())
     fetchSegments(videoId).then((s) => (segments.current = s))
     getCaptions(videoId).then((c) => alive && setCaptions(c))
     return () => {
       alive = false
     }
   }, [videoId])
+
+  // Falls back to the combined stream, which plays through the element's own src.
+  const fallBack = () => {
+    setAdaptive(undefined)
+    getStream(videoId).then(setStream, (e) => setError(String(e.message ?? e)))
+  }
+  useEffect(() => {
+    const v = video.current
+    if (adaptive && v) return attachAdaptive(v, adaptive, fallBack)
+  }, [adaptive])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -89,7 +106,7 @@ export function Player({ item, onClose }: Props) {
     setTime({ cur: v.currentTime, dur: v.duration })
     if (Date.now() - lastSave.current > 5000 && v.currentTime > 1) {
       lastSave.current = Date.now()
-      saveProgress({ ...item, title: item.title || stream?.title || '' }, v.currentTime, v.duration)
+      saveProgress({ ...item, title: item.title || title }, v.currentTime, v.duration)
     }
     const hit = findSkip(segments.current, v.currentTime, DEFAULT_CATEGORIES)
     if (hit) {
@@ -116,19 +133,19 @@ export function Player({ item, onClose }: Props) {
 
   return (
     <div className="player" onMouseMove={wake}>
-      <button ref={backBtn} className={`player-back${chrome || error || !stream ? '' : ' hidden'}`} aria-label="Back" onClick={onClose}>
+      <button ref={backBtn} className={`player-back${chrome || error || !ready ? '' : ' hidden'}`} aria-label="Back" onClick={onClose}>
         <ArrowLeft /> Back
       </button>
       {error && <div className="player-msg">Cannot play: {error}</div>}
-      {!error && !stream && <div className="player-msg">Loading…</div>}
-      {stream && (
+      {!error && !ready && <div className="player-msg">Loading…</div>}
+      {ready && (
         <>
-          <video ref={video} src={stream.url} autoPlay onClick={toggle} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={() => saveProgress({ ...item, title: item.title || stream?.title || '' }, 1, 1)} onLoadedMetadata={onLoaded} onTimeUpdate={onTimeUpdate} onError={() => setError('Playback failed')}>
+          <video ref={video} src={stream?.url} autoPlay onClick={toggle} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={() => saveProgress({ ...item, title: item.title || title }, 1, 1)} onLoadedMetadata={onLoaded} onTimeUpdate={onTimeUpdate} onError={() => (adaptive ? fallBack() : setError('Playback failed'))}>
             {captions.map((c) => (
               <track key={c.lang + c.label} kind="subtitles" label={c.label} srcLang={c.lang} src={c.url} />
             ))}
           </video>
-          <div className={`player-title${chrome ? '' : ' hidden'}`}>{stream.title}</div>
+          <div className={`player-title${chrome ? '' : ' hidden'}`}>{title}</div>
           <div className={`player-controls${chrome ? '' : ' hidden'}`}>
             <input
               className="player-seek"
