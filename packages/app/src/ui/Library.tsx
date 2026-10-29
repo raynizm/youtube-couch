@@ -13,7 +13,7 @@ import { useRowSnap } from './useRowSnap'
 
 function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: (i: Item) => void }) {
   return (
-    <div className="screen padded top">
+    <div className="screen padded top lit-grid">
       {items.length === 0 && <div className="msg">{empty}</div>}
       <div className="grid">
         {items.map((i) => (
@@ -89,11 +89,11 @@ function SubscriptionRows({ onOpen }: { onOpen: (i: Item) => void }) {
   return <ChannelRows rows={data} onOpen={onOpen} />
 }
 
-function CardGrid({ items, onOpen }: { items: Item[]; onOpen: (i: Item) => void }) {
+function CardGrid({ items, labels, onOpen }: { items: Item[]; labels?: boolean; onOpen: (i: Item) => void }) {
   return (
     <div className="grid">
-      {items.map((i) => (
-        <Card key={i.id} item={i} onOpen={onOpen} />
+      {items.map((i, n) => (
+        <Card key={`${i.id}:${n}`} item={i} labels={labels} spoken={labels} channel={labels} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -112,7 +112,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
   }, [active, onBack])
 
   return (
-    <div className="screen padded top">
+    <div className="screen padded top lit-grid">
       <button className="player-back" data-focusable aria-label="Back" onClick={onBack}>
         <ArrowLeft /> Back
       </button>
@@ -124,7 +124,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
       ) : data.length === 0 ? (
         <div className="msg">This playlist is empty.</div>
       ) : (
-        <CardGrid items={data} onOpen={onOpen} />
+        <CardGrid items={data} labels onOpen={onOpen} />
       )}
     </div>
   )
@@ -137,7 +137,7 @@ function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: It
 
   if (opened) return <PlaylistVideos playlist={opened} active={active} onBack={back} onOpen={onOpen} />
   return (
-    <div className="screen padded top">
+    <div className="screen padded top lit-grid">
       {error ? (
         <div className="msg">Failed to load: {error}</div>
       ) : !data ? (

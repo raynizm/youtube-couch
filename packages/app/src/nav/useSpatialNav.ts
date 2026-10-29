@@ -41,7 +41,8 @@ export function useSpatialNav(enabled = true) {
           const s = strip.getBoundingClientRect()
           strip.scrollTo({ left: strip.scrollLeft + r.left - s.left - (s.width - r.width) / 2, behavior: 'smooth' })
         } else {
-          el.focus()
+          // One scroll only: the default focus scroll would fight the one below and look choppy.
+          el.focus({ preventScroll: true })
           el.scrollIntoView({ block: 'nearest', inline: 'center' })
         }
       }

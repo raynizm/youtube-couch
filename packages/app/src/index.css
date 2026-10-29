@@ -26,6 +26,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 transparent; }
 .msg { padding: 6rem 3rem; color: var(--muted); font-size: var(--t-body); text-align: center; }
 .padded { padding: 1.5rem 3rem 4rem; }
+main:has(.lit-grid) { scroll-behavior: smooth; }
+.lit-grid { padding-bottom: 12rem; }
+.lit-grid .card { scroll-margin: 8rem 0 10rem; }
+.lit-grid .card-img, .lit-grid .card-stack::before, .lit-grid .card-stack::after { border-radius: 0; }
+/* Only the focused (or hovered) playlist is lit; its stack layers dim with the rest. */
+.lit-grid .card-stack::before, .lit-grid .card-stack::after { opacity: .35; transition: opacity .15s; }
+.lit-grid .card:hover .card-stack::before, .lit-grid .card:hover .card-stack::after, .lit-grid .card:focus .card-stack::before, .lit-grid .card:focus .card-stack::after { opacity: 1; }
 
 /* Floating pill nav */
 .nav { position: fixed; top: 1.25rem; left: 0; right: 0; z-index: 5; display: flex; justify-content: center; pointer-events: none; }
@@ -118,8 +125,9 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 /* Library sections already sit inside .padded's gutter. */
 .padded .row { padding-left: 0; padding-right: 0; }
 .row .msg { padding: 2rem 0; text-align: left; }
-.playlist-title { margin: 1.5rem 0 0; font-size: var(--t-head); font-weight: 700; text-wrap: balance; }
-.padded > .player-back { position: static; }
+.playlist-title { margin: 0; font-size: var(--t-head); font-weight: 700; text-wrap: balance; }
+/* Same spot as on the details screen, and it stays there while the page scrolls. */
+.padded > .player-back { position: fixed; z-index: 6; }
 
 /* Cards */
 .card { flex: none; width: 15rem; display: flex; flex-direction: column; align-items: stretch; gap: 0; }
@@ -145,16 +153,17 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .card-title.one-line { display: block; white-space: nowrap; text-overflow: ellipsis; }
 .card-labels { display: flex; gap: 0.5rem; margin-top: 0.5rem; font-size: var(--t-label); }
 .card-labels .hero-label { background: rgba(0, 0, 0, .5); white-space: nowrap; }
+.card-labels .card-channel { align-self: center; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 /* Duration sits at the left edge of the thumbnail, the upload date at the right, even when one is missing. */
 .card-labels .upload { margin-left: auto; }
 .card-sub { margin-top: 0.125rem; font-size: var(--t-label); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card:focus .card-img { box-shadow: 0 0 0 0.1875rem var(--ring); transform: scale(1.03); }
 /* Details and Home rows: thumbnails rest dimmed and light up at full brightness on focus or hover. */
 :is(.details-rows, .home-rows) .card-img, :is(.details-rows, .home-rows) .skel.card-img { border-radius: 0; }
-:is(.details-rows, .home-rows) .card-img img { filter: brightness(.35); transition: filter .15s; }
-:is(.details-rows, .home-rows) .card:hover .card-img img, :is(.details-rows, .home-rows) .card:focus .card-img img { filter: none; }
-:is(.details-rows, .home-rows) .card-title, :is(.details-rows, .home-rows) .card-sub, :is(.details-rows, .home-rows) .card-labels { opacity: .5; transition: opacity .15s; }
-:is(.details-rows, .home-rows) .card:hover .card-title, :is(.details-rows, .home-rows) .card:hover .card-sub, :is(.details-rows, .home-rows) .card:hover .card-labels, :is(.details-rows, .home-rows) .card:focus .card-title, :is(.details-rows, .home-rows) .card:focus .card-sub, :is(.details-rows, .home-rows) .card:focus .card-labels { opacity: 1; }
+:is(.details-rows, .home-rows, .lit-grid) .card-img img { filter: brightness(.35); transition: filter .15s; }
+:is(.details-rows, .home-rows, .lit-grid) .card:hover .card-img img, :is(.details-rows, .home-rows, .lit-grid) .card:focus .card-img img { filter: none; }
+:is(.details-rows, .home-rows, .lit-grid) .card-title, :is(.details-rows, .home-rows, .lit-grid) .card-sub, :is(.details-rows, .home-rows, .lit-grid) .card-labels { opacity: .5; transition: opacity .15s; }
+:is(.details-rows, .home-rows, .lit-grid) .card:hover .card-title, :is(.details-rows, .home-rows, .lit-grid) .card:hover .card-sub, :is(.details-rows, .home-rows, .lit-grid) .card:hover .card-labels, :is(.details-rows, .home-rows, .lit-grid) .card:focus .card-title, :is(.details-rows, .home-rows, .lit-grid) .card:focus .card-sub, :is(.details-rows, .home-rows, .lit-grid) .card:focus .card-labels { opacity: 1; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1.5rem 1rem; margin-top: 1.5rem; }
 .grid .card { width: auto; }

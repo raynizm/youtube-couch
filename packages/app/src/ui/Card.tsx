@@ -4,9 +4,9 @@ import { cardSub } from './cardSub'
 import { PlayIcon } from './icons'
 import { MetaLabels } from './MetaLabels'
 
-type Props = { item: Item; onOpen: (i: Item) => void; onPreview?: (i: Item) => void; progress?: number; subtitle?: string; labels?: boolean }
+type Props = { item: Item; onOpen: (i: Item) => void; onPreview?: (i: Item) => void; progress?: number; subtitle?: string; labels?: boolean; spoken?: boolean; channel?: boolean }
 
-export const Card = memo(function Card({ item, onOpen, onPreview, progress, subtitle, labels }: Props) {
+export const Card = memo(function Card({ item, onOpen, onPreview, progress, subtitle, labels, spoken, channel }: Props) {
   return (
     <button
       className="card"
@@ -32,7 +32,8 @@ export const Card = memo(function Card({ item, onOpen, onPreview, progress, subt
         <>
           <span className="card-title one-line">{item.title}</span>
           <span className="card-labels">
-            <MetaLabels text={item.meta ?? ''} />
+            {channel && item.author && <span className="card-channel">{item.author}</span>}
+            <MetaLabels text={item.meta ?? ''} spoken={spoken} />
           </span>
         </>
       ) : (
