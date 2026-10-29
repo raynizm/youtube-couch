@@ -10,7 +10,7 @@ export function spokenDuration(d: string): string {
 }
 
 /** Duration and upload date from a "1.3M views · 8 hours ago · 4:17" style string, as label pills; everything else is left out. */
-export function MetaLabels({ text, spoken = false }: { text: string; spoken?: boolean }) {
+export function MetaLabels({ text, spoken = false, upload = true }: { text: string; spoken?: boolean; upload?: boolean }) {
   const parts = text.split(' · ')
   const duration = parts.find((m) => DURATION.test(m))
   const uploaded = parts.find((m) => /\bago\b/i.test(m) && !isViewCount(m))
@@ -21,7 +21,7 @@ export function MetaLabels({ text, spoken = false }: { text: string; spoken?: bo
           <ClockIcon /> {spoken ? spokenDuration(duration) : duration}
         </span>
       )}
-      {uploaded && (
+      {upload && uploaded && (
         <span className="hero-label upload">
           <UploadIcon /> {uploaded}
         </span>

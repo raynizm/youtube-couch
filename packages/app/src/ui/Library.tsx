@@ -2,24 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
 import { useProgress } from '../store'
 import { useAuth } from '../yt/auth'
-import { accountHistory, accountPlaylists, getPlaylistVideos, subscriptionRows } from '../yt/client'
+import { accountHistory, accountPlaylists, HISTORY_SIZE, getPlaylistVideos, subscriptionRows } from '../yt/client'
 import type { Item, Row } from '../yt/types'
 import { Card } from './Card'
 import { ArrowLeft } from './icons'
 import { RowView } from './RowView'
-import { RowsSkeleton } from './Skeleton'
+import { GridSkeleton, RowsSkeleton } from './Skeleton'
 import { useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
 
 function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: (i: Item) => void }) {
   return (
-    <div className="screen padded top lit-grid">
+    <div className="screen padded top lit-grid history">
       {items.length === 0 && <div className="msg">{empty}</div>}
-      <div className="grid">
-        {items.map((i) => (
-          <Card key={i.id} item={i} onOpen={onOpen} />
-        ))}
-      </div>
+      <CardGrid items={items} labels onOpen={onOpen} />
     </div>
   )
 }
@@ -29,13 +25,19 @@ export function FeedGrid({ fetcher, empty, onOpen }: { fetcher: () => Promise<It
   const { feedKey } = useAuth()
   const { data, error } = useFeed(fetcher, feedKey)
   if (error) return <div className="msg">Failed to load: {error}</div>
-  if (!data) return <div className="msg">Loading…</div>
+  if (!data)
+    return (
+      <div className="screen padded top lit-grid history">
+        <GridSkeleton labels />
+      </div>
+    )
   return <Grid items={data} empty={empty} onOpen={onOpen} />
 }
 
 function LocalHistory({ onOpen }: { onOpen: (i: Item) => void }) {
   const items = Object.values(useProgress())
     .sort((a, b) => b.ts - a.ts)
+    .slice(0, HISTORY_SIZE)
     .map((h) => h.item)
   return <Grid items={items} empty="No watch history yet." onOpen={onOpen} />
 }
@@ -49,11 +51,8 @@ export function History({ onOpen }: { onOpen: (i: Item) => void }) {
 function ChannelRowsSkeleton() {
   return (
     <div className="screen subs">
-      <div className="details-backdrop" aria-hidden>
-        <div className="hero-shade" />
-      </div>
       <div className="details-rows subs-rows">
-        <RowsSkeleton rows={['Channel name', 'Another channel', 'Third channel'].map((title) => ({ title, labels: true }))} />
+        <RowsSkeleton rows={['Channel name', 'Another channel', 'Third channel'].map((title) => ({ title, labels: true }))} spoken />
       </div>
     </div>
   )
@@ -65,12 +64,9 @@ function ChannelRows({ rows, onOpen }: { rows: Row[]; onOpen: (i: Item) => void 
   if (rows.length === 0) return <div className="msg center">No subscriptions yet.</div>
   return (
     <div className="screen subs">
-      <div className="details-backdrop" aria-hidden>
-        <div className="hero-shade" />
-      </div>
       <div className="details-rows subs-rows" ref={box}>
         {rows.map((r) => (
-          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} loop labels onOpen={onOpen} />
+          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} loop labels spoken onOpen={onOpen} />
         ))}
       </div>
     </div>
@@ -89,11 +85,11 @@ function SubscriptionRows({ onOpen }: { onOpen: (i: Item) => void }) {
   return <ChannelRows rows={data} onOpen={onOpen} />
 }
 
-function CardGrid({ items, labels, onOpen }: { items: Item[]; labels?: boolean; onOpen: (i: Item) => void }) {
+function CardGrid({ items, labels, upload, onOpen }: { items: Item[]; labels?: boolean; upload?: boolean; onOpen: (i: Item) => void }) {
   return (
     <div className="grid">
       {items.map((i, n) => (
-        <Card key={`${i.id}:${n}`} item={i} labels={labels} spoken={labels} channel={labels} onOpen={onOpen} />
+        <Card key={`${i.id}:${n}`} item={i} labels={labels} spoken={labels} channel={labels} upload={upload} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -112,7 +108,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
   }, [active, onBack])
 
   return (
-    <div className="screen padded top lit-grid">
+    <div className="screen padded top lit-grid history">
       <button className="player-back" data-focusable aria-label="Back" onClick={onBack}>
         <ArrowLeft /> Back
       </button>
@@ -124,7 +120,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
       ) : data.length === 0 ? (
         <div className="msg">This playlist is empty.</div>
       ) : (
-        <CardGrid items={data} labels onOpen={onOpen} />
+        <CardGrid items={data} labels upload={false} onOpen={onOpen} />
       )}
     </div>
   )
@@ -141,7 +137,7 @@ function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: It
       {error ? (
         <div className="msg">Failed to load: {error}</div>
       ) : !data ? (
-        <div className="msg">Loading…</div>
+        <GridSkeleton stack />
       ) : data.length === 0 ? (
         <div className="msg">No playlists on your account yet.</div>
       ) : (

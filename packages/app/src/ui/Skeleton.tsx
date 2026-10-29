@@ -5,7 +5,7 @@ export function Ink({ children }: { children: string }) {
   return <span className="skel-ink">{children}</span>
 }
 
-export function RowsSkeleton({ rows }: { rows: { title: string; labels: boolean }[] }) {
+export function RowsSkeleton({ rows, spoken = false }: { rows: { title: string; labels: boolean }[]; spoken?: boolean }) {
   return (
     <div className="skel-ghost" aria-hidden>
       {rows.map((r) => (
@@ -25,7 +25,7 @@ export function RowsSkeleton({ rows }: { rows: { title: string; labels: boolean 
                       <Ink>Placeholder video title</Ink>
                     </span>
                     <span className="card-labels">
-                      <MetaLabels text="12:34 · 3 weeks ago" />
+                      <MetaLabels text="12:34 · 3 weeks ago" spoken={spoken} />
                     </span>
                   </>
                 ) : (
@@ -47,3 +47,40 @@ export function RowsSkeleton({ rows }: { rows: { title: string; labels: boolean 
   )
 }
 
+
+/** Placeholder cards for a grid screen; `stack` draws the stacked-thumbnail look of playlists, `labels` the channel and duration row of video cards. */
+export function GridSkeleton({ stack = false, labels = false }: { stack?: boolean; labels?: boolean }) {
+  return (
+    <div className="grid skel-ghost" aria-hidden>
+      {Array.from({ length: 12 }, (_, i) => (
+        <div key={i} className="card">
+          <span className={stack ? 'card-stack' : 'card-wrap'}>
+            <div className="skel card-img" />
+          </span>
+          {labels ? (
+            <>
+              <span className="card-title one-line">
+                <Ink>Placeholder video title</Ink>
+              </span>
+              <span className="card-labels">
+                <span className="card-channel">
+                  <Ink>Channel name</Ink>
+                </span>
+                <MetaLabels text="12:34" spoken />
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="card-title one-line">
+                <Ink>Placeholder playlist title</Ink>
+              </span>
+              <span className="card-sub">
+                <Ink>Channel name</Ink>
+              </span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}

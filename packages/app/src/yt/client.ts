@@ -466,8 +466,12 @@ export async function accountPlaylists(): Promise<Item[]> {
   return parseGrid(await tvBrowse('FEplaylist_aggregation')).filter((i) => i.kind === 'playlist')
 }
 
+export const HISTORY_SIZE = 50
+
 export async function accountHistory(): Promise<Item[]> {
-  return parseGrid(await tvBrowse('FEhistory')).filter((i) => i.kind === 'video')
+  return parseGrid(await tvBrowse('FEhistory'))
+    .filter((i) => i.kind === 'video')
+    .slice(0, HISTORY_SIZE)
 }
 
 /** Playlist browse shape was not captured, so every tile in the response is collected. */

@@ -74,7 +74,7 @@ export default function App() {
       {signingIn && <SignIn onClose={closeSignIn} onDone={signedIn} />}
       {choosing && auth.signedIn && <ProfilePicker silent={choosing === 'login'} onClose={closeChoosing} />}
       {menu && auth.signedIn && <AccountMenu name={auth.name} onSwitch={switchAccount} onSignOut={confirmSignOut} onClose={closeMenu} />}
-      {!playing && (details || tab === 'home') && <Clock />}
+      {!playing && <Clock />}
       {playing && <Player item={playing} onClose={close} />}
     </div>
   )
