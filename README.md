@@ -1,6 +1,33 @@
 # YouTube Couch
 
-TV-first YouTube client built with React, TypeScript and Vite. Targets Android TV (WebView) and Tizen (Chrome 76 baseline), with D-pad spatial navigation, TV-client account feeds, SponsorBlock skipping, and ad/Shorts filtering.
+A YouTube client for the TV, built for intentional watching.
+
+Your time is valuable. The stock YouTube app is designed to keep you on it: endless feeds, autoplaying Shorts, ads, and sponsor reads that eat the first minute of every video. You sit down to watch one thing and look up an hour later, not sure what you watched.
+
+YouTube Couch turns that around. Every video you watch is one you chose.
+
+- **Your own YouTube, nothing else.** Sign in with your account and see what matters to you: the latest uploads from channels you subscribe to, your playlists and your history.
+- **No endless feed.** Rows stop after a handful of videos instead of scrolling forever, so you can see what is new, decide, and press play.
+- **No Shorts.** They are filtered out everywhere.
+- **No ads.** Videos start straight away.
+- **No sponsor segments.** SponsorBlock skips them for you, so you get to the content.
+- **Built for the couch.** The interface is made for a TV and a remote, with D-pad navigation and large, clear thumbnails. There is no phone-sized UI squeezed onto a big screen.
+
+The goal is simple: you open it, find the video you came for, watch it, and get on with your day.
+
+It is built with React, TypeScript and Vite, and runs on Android TV (WebView) and Samsung Tizen (Chrome 76 baseline). You control it with the remote's D-pad.
+
+## Screenshots
+
+![Home](screenshots/home.png)
+
+![Subscriptions](screenshots/subscriptions.png)
+
+![Playlists](screenshots/playlists.png)
+
+![History](screenshots/history.png)
+
+![Video details](screenshots/details.png)
 
 ## Layout
 
@@ -14,7 +41,6 @@ Bun workspace monorepo.
   - `src/sponsorblock` — segment skipping
   - `src/ui` — screens and components
 - `packages/tizen` — TizenBrew module: manifest, CORS proxy service, build script
-- `docs` — design specs and plans
 
 ## Requirements
 
