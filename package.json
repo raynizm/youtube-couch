@@ -1,11 +1,11 @@
 {
-  "name": "bluefin",
+  "name": "youtube-couch",
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "bun run --filter @bluefin/app dev",
-    "build:web": "bun run --filter @bluefin/app build",
-    "build:tizen": "bun run --filter bluefin-tizenbrew build",
-    "test": "bun run --filter @bluefin/app test"
+    "dev": "bun run --filter @youtube-couch/app dev",
+    "build:web": "bun run --filter @youtube-couch/app build",
+    "build:tizen": "bun run --filter youtube-couch-tizen build",
+    "test": "bun run --filter @youtube-couch/app test"
   }
 }

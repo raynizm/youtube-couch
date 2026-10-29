@@ -1,5 +1,5 @@
 ---
-name: Bluefin
+name: YouTube Couch
 description: A dark, cinematic TV YouTube client where one video leads and the chrome recedes.
 colors:
   canvas: "#0a0a0a"
@@ -71,13 +71,13 @@ components:
     height: "44px"
 ---
 
-# Design System: Bluefin
+# Design System: YouTube Couch
 
 ## Overview
 
 **Creative North Star: "The Quiet Marquee"**
 
-Bluefin is a dark room with one lit screen. A cinematic hero previews the focused video; everything else stays dim, rounded, and out of the way. Rows of cards sit below the marquee and scroll on their own, so the cover never moves while the user browses.
+YouTube Couch is a dark room with one lit screen. A cinematic hero previews the focused video; everything else stays dim, rounded, and out of the way. Rows of cards sit below the marquee and scroll on their own, so the cover never moves while the user browses.
 
 The system is near-black neutrals with a single blue signal color. Controls are soft translucent glass pills at rest. Focus is the only loud moment: a white ring or white fill that is visible from across the room. Motion is slow and cinematic: two-second preview fades, text that slides across the hero.
 

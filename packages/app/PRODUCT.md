@@ -12,11 +12,11 @@ Personal living-room use: the owner and household watching YouTube on Android TV
 
 ## Product Purpose
 
-Bluefin is a TV-first YouTube client. It signs in with the user's own YouTube account (TV OAuth) and shows their real account feeds. Success is intentional, focused watching: the user finds what they came to watch and is not pulled into mindless scrolling or wasted time.
+YouTube Couch is a TV-first YouTube client. It signs in with the user's own YouTube account (TV OAuth) and shows their real account feeds. Success is intentional, focused watching: the user finds what they came to watch and is not pulled into mindless scrolling or wasted time.
 
 ## Positioning
 
-Unlike the stock YouTube TV app, Bluefin removes ads and Shorts, skips sponsor segments via SponsorBlock, and is designed to make watching more intentional and focused rather than maximizing engagement.
+Unlike the stock YouTube TV app, YouTube Couch removes ads and Shorts, skips sponsor segments via SponsorBlock, and is designed to make watching more intentional and focused rather than maximizing engagement.
 
 ## Operating Context
 
@@ -32,7 +32,7 @@ Unlike the stock YouTube TV app, Bluefin removes ads and Shorts, skips sponsor s
 
 ## Brand Commitments
 
-Name: Bluefin. No logo, voice guide, or other brand assets confirmed.
+Name: YouTube Couch. No logo, voice guide, or other brand assets confirmed.
 
 ## Evidence on Hand
 

@@ -80,6 +80,6 @@ var server = http.createServer(function (req, res) {
 
 // TizenBrew starts this service again on every launch; the copy already listening keeps serving.
 server.on('error', function (e) {
-  console.log('bluefin proxy: ' + e.message)
+  console.log('youtube-couch proxy: ' + e.message)
 })
 server.listen(PORT, '127.0.0.1')

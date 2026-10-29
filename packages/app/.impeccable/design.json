@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-20T00:00:00Z",
-  "title": "Design System: Bluefin",
+  "title": "Design System: YouTube Couch",
   "extensions": {
     "colorMeta": {
       "canvas": { "role": "neutral", "displayName": "Screening Black", "canonical": "#0a0a0a", "tonalRamp": ["#0a0a0a", "#171717", "#262626", "#404040", "#737373", "#a1a1a1", "#d4d4d4", "#fafafa"] },
@@ -74,7 +74,7 @@
   ],
   "narrative": {
     "northStar": "The Quiet Marquee",
-    "overview": "Bluefin is a dark room with one lit screen. A cinematic hero previews the focused video; everything else stays dim, rounded, and out of the way. Rows of cards sit below the marquee and scroll on their own, so the cover never moves while the user browses.",
+    "overview": "YouTube Couch is a dark room with one lit screen. A cinematic hero previews the focused video; everything else stays dim, rounded, and out of the way. Rows of cards sit below the marquee and scroll on their own, so the cover never moves while the user browses.",
     "keyCharacteristics": ["Near-black canvas; content imagery supplies all the color.", "Pill-shaped, blurred-glass controls.", "Decisive white focus state on every focusable element.", "One cover that stays put, with lists scrolling beneath it.", "No shadows for hierarchy; gradients and blur carry depth."],
     "rules": [
       { "name": "The One Signal Rule", "body": "Blue marks progress and selection only. Interactive affordances are white, never blue.", "section": "colors" },
