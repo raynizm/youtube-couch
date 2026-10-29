@@ -15,6 +15,7 @@ export const Card = memo(function Card({ item, onOpen, onPreview, progress, subt
       onMouseEnter={() => onPreview?.(item)}
       onFocus={() => onPreview?.(item)}
     >
+      <span className={item.kind === 'playlist' ? 'card-stack' : 'card-wrap'}>
       <span className="card-img">
         <img src={item.thumb} alt="" loading="lazy" />
         <span className="card-play">
@@ -25,6 +26,7 @@ export const Card = memo(function Card({ item, onOpen, onPreview, progress, subt
             <span style={{ width: `${Math.min(100, progress * 100)}%` }} />
           </span>
         )}
+      </span>
       </span>
       {labels ? (
         <>

@@ -7,6 +7,33 @@ import { useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
 import { newestFirst } from '../yt/age'
 import { RowView } from './RowView'
+import { Ink, RowsSkeleton } from './Skeleton'
+
+// Same layout as the loaded screen, with placeholders in place of the cover and rows.
+function HomeSkeleton() {
+  return (
+    <div className="screen home">
+      <section className="hero skel-ghost" aria-hidden>
+        <div className="hero-info">
+          <h1>
+            <Ink>Placeholder featured video title</Ink>
+          </h1>
+          <div className="hero-meta">
+            <span className="hero-label">Channel name</span>
+            <span className="hero-label">3 weeks ago</span>
+          </div>
+          <div className="hero-actions">
+            <div className="skel skel-round" />
+            <div className="skel skel-round" />
+          </div>
+        </div>
+      </section>
+      <div className="home-rows">
+        <RowsSkeleton rows={[{ title: 'Latest uploads', labels: false }, { title: 'Recommended', labels: false }]} />
+      </div>
+    </div>
+  )
+}
 
 export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i: Item) => void }) {
   const { signedIn, feedKey } = useAuth()
@@ -34,7 +61,7 @@ export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i
   const cardRows = useMemo(() => (rows ?? []).map((r) => ({ title: r.title, cards: newestFirst(r.items).map((item) => ({ item })) })), [rows])
 
   if (error) return <div className="msg">Failed to load: {error}</div>
-  if (!rows) return <div className="msg">Loading…</div>
+  if (!rows) return <HomeSkeleton />
 
   if (rows.length === 0) return <div className="msg">Nothing to show yet.</div>
 

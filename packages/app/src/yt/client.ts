@@ -5,7 +5,7 @@ import { newestFirst } from './age'
 import { clearAuth, loadCredentials, loadProfileId, saveAccount, saveCredentials, saveProfileId, type Account } from './auth'
 import { parseProfiles, type Profile } from './profiles'
 import { scopeBearer, scopeProfile, toProxyHeaders } from './proxyHeaders'
-import { allItems, parseGrid, parseHome, parseSubscriptions } from './tv'
+import { allItems, parseGrid, parseHome, parseSubscribedChannels, parseSubscriptions } from './tv'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
 const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
@@ -322,10 +322,7 @@ export async function getDetails(videoId: string): Promise<Details> {
 export async function getChannelVideos(channelId: string): Promise<Item[]> {
   const yt = await getSession()
   const ch = await (await yt.getChannel(channelId)).getVideos()
-  const raw = ch.videos as unknown as Raw[]
-  const n = raw[0]
-  console.log('DBG', n.type, JSON.stringify(n, (k, v) => (k === 'thumbnails' || k === 'image' || k === 'actions' ? undefined : v)).slice(0, 3500))
-  return toVideos(raw)
+  return toVideos(ch.videos as unknown as Raw[])
 }
 
 export async function getStream(videoId: string): Promise<Stream> {
@@ -418,6 +415,53 @@ export async function subscriptionsFeed(): Promise<Item[]> {
 
 export async function accountPlaylists(): Promise<Item[]> {
   return parseGrid(await tvBrowse('FEplaylist_aggregation')).filter((i) => i.kind === 'playlist')
+const SUB_ROW_SIZE = 20
+const SUB_FETCH_PARALLEL = 6
+
+/** Items grouped into one row per author, alphabetical, newest first inside a row. */
+function groupByAuthor(items: Item[]): Row[] {
+  const by = new Map<string, Item[]>()
+  for (const i of items) by.set(i.author ?? 'Other', [...(by.get(i.author ?? 'Other') ?? []), i])
+  return [...by]
+    .map(([title, list]) => ({ title, items: newestFirst(list) }))
+    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+}
+
+/** Subscribed channels from the web client's FEchannels page, for when the TV response lists none. */
+async function webSubscribedChannels(): Promise<{ id: string; name: string }[]> {
+  try {
+    const feed = await (await getSession()).getChannelsFeed()
+    return (feed.channels as unknown as Raw[])
+      .map((c) => ({ id: String(c.id ?? c.author?.id ?? ''), name: String(c.author?.name ?? c.title?.text ?? c.title ?? '') }))
+      .filter((c) => c.id && c.name)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * One row per subscribed channel with its latest uploads. When the response lists no channels
+ * (or none load), falls back to the subscriptions feed grouped by channel.
+ */
+export async function subscriptionRows(): Promise<Row[]> {
+  const data = await tvBrowse('FEsubscriptions')
+  let channels = parseSubscribedChannels(data)
+  if (!channels.length) channels = await webSubscribedChannels()
+  console.info(`subscriptions: ${channels.length} channels`)
+  const rows: (Row | undefined)[] = new Array(channels.length)
+  let next = 0
+  const worker = async () => {
+    while (next < channels.length) {
+      const i = next++
+      const items = await getChannelVideos(channels[i].id).then((v) => v.slice(0, SUB_ROW_SIZE), () => [])
+      if (items.length) rows[i] = { title: channels[i].name, items }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SUB_FETCH_PARALLEL, channels.length) }, worker))
+  const found = rows.filter((r): r is Row => !!r).sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+  return found.length ? found : groupByAuthor(parseSubscriptions(data))
+}
+
 }
 
 export async function accountHistory(): Promise<Item[]> {

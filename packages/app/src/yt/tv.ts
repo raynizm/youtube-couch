@@ -120,6 +120,32 @@ export function parseSubscriptions(data: unknown): Item[] {
   return items.length ? items : allItems(tab ?? data)
 }
 
+/** Channels listed after the "All" tab of FEsubscriptions: each tab is one subscribed channel. */
+export function parseSubscribedChannels(data: unknown): { id: string; name: string; avatar?: string }[] {
+  const nav = (data as Raw)?.contents?.tvBrowseRenderer?.content?.tvSecondaryNavRenderer
+  const out: { id: string; name: string; avatar?: string }[] = []
+  for (const section of arr(nav?.sections)) {
+    for (const t of arr(section?.tvSecondaryNavSectionRenderer?.tabs).slice(0, 200)) {
+      const tab = obj(t?.tabRenderer)
+      const id = findBrowseId(tab?.endpoint ?? tab)
+      const name = textOf(tab?.title)
+      if (id && name && !out.some((c) => c.id === id)) out.push({ id, name, avatar: avatarOf(tab) })
+    }
+  }
+  return out
+}
+
+/** First `browseId` of a channel (UC...) anywhere under `node`. */
+function findBrowseId(node: unknown, depth = 0): string | undefined {
+  if (!node || typeof node !== 'object' || depth > 8) return undefined
+  for (const [k, v] of Object.entries(node as Raw)) {
+    if (k === 'browseId' && typeof v === 'string' && v.startsWith('UC')) return v
+    const found = findBrowseId(v, depth + 1)
+    if (found) return found
+  }
+  return undefined
+}
+
 /** FEhistory / FEplaylist_aggregation -> grid tiles. */
 export function parseGrid(data: unknown): Item[] {
   const grid = (data as Raw)?.contents?.tvBrowseRenderer?.content?.tvSurfaceContentRenderer?.content?.gridRenderer

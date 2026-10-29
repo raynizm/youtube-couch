@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
-import { useProgress, useWatchlist } from '../store'
+import { useProgress } from '../store'
 import { useAuth } from '../yt/auth'
-import { accountHistory, accountPlaylists, getPlaylistVideos, subscriptionsFeed } from '../yt/client'
-import type { Item } from '../yt/types'
+import { accountHistory, accountPlaylists, getPlaylistVideos, subscriptionRows } from '../yt/client'
+import type { Item, Row } from '../yt/types'
 import { Card } from './Card'
 import { ArrowLeft } from './icons'
+import { RowView } from './RowView'
+import { RowsSkeleton } from './Skeleton'
 import { useFeed } from './useFeed'
+import { useRowSnap } from './useRowSnap'
 
 function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: (i: Item) => void }) {
   return (
@@ -42,22 +45,48 @@ export function History({ onOpen }: { onOpen: (i: Item) => void }) {
   return <FeedGrid fetcher={accountHistory} empty="No watch history yet." onOpen={onOpen} />
 }
 
-export function Subscriptions({ onOpen }: { onOpen: (i: Item) => void }) {
-  if (!useAuth().signedIn) return <SignInNotice what="subscriptions" />
-  return <FeedGrid fetcher={subscriptionsFeed} empty="No new videos from your subscriptions." onOpen={onOpen} />
+// Same layout as the loaded screen, with placeholder rows until the channels are in.
+function ChannelRowsSkeleton() {
+  return (
+    <div className="screen subs">
+      <div className="details-backdrop" aria-hidden>
+        <div className="hero-shade" />
+      </div>
+      <div className="details-rows subs-rows">
+        <RowsSkeleton rows={['Channel name', 'Another channel', 'Third channel'].map((title) => ({ title, labels: true }))} />
+      </div>
+    </div>
+  )
 }
 
-const WATCHLIST_EMPTY = 'Nothing saved yet. Use the bookmark button on Home.'
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function ChannelRows({ rows, onOpen }: { rows: Row[]; onOpen: (i: Item) => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  useRowSnap(box, true)
+  if (rows.length === 0) return <div className="msg center">No subscriptions yet.</div>
   return (
-    <section className="row">
-      <div className="row-head">
-        <h2>{title}</h2>
+    <div className="screen subs">
+      <div className="details-backdrop" aria-hidden>
+        <div className="hero-shade" />
       </div>
-      {children}
-    </section>
+      <div className="details-rows subs-rows" ref={box}>
+        {rows.map((r) => (
+          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} loop labels onOpen={onOpen} />
+        ))}
+      </div>
+    </div>
   )
+}
+
+export function Subscriptions({ onOpen }: { onOpen: (i: Item) => void }) {
+  if (!useAuth().signedIn) return <SignInNotice what="subscriptions" />
+  return <SubscriptionRows onOpen={onOpen} />
+}
+
+function SubscriptionRows({ onOpen }: { onOpen: (i: Item) => void }) {
+  const { data, error } = useFeed(subscriptionRows, useAuth().feedKey)
+  if (error) return <div className="msg center">Failed to load: {error}</div>
+  if (!data) return <ChannelRowsSkeleton />
+  return <ChannelRows rows={data} onOpen={onOpen} />
 }
 
 function CardGrid({ items, onOpen }: { items: Item[]; onOpen: (i: Item) => void }) {
@@ -102,7 +131,6 @@ function PlaylistVideos({ playlist, active, onBack, onOpen }: { playlist: Item; 
 }
 
 function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: Item) => void }) {
-  const watchlist = useWatchlist()
   const { data, error } = useFeed(accountPlaylists, useAuth().feedKey)
   const [opened, setOpened] = useState<Item>()
   const back = useCallback(() => setOpened(undefined), [])
@@ -110,36 +138,36 @@ function SignedInPlaylists({ active, onOpen }: { active: boolean; onOpen: (i: It
   if (opened) return <PlaylistVideos playlist={opened} active={active} onBack={back} onOpen={onOpen} />
   return (
     <div className="screen padded top">
-      <Section title="Watch later">
-        {watchlist.length === 0 && <div className="msg">{WATCHLIST_EMPTY}</div>}
-        <CardGrid items={watchlist} onOpen={onOpen} />
-      </Section>
-      <Section title="Your playlists">
-        {error ? (
-          <div className="msg">Failed to load: {error}</div>
-        ) : !data ? (
-          <div className="msg">Loading…</div>
-        ) : data.length === 0 ? (
-          <div className="msg">No playlists on your account yet.</div>
-        ) : (
-          <CardGrid items={data} onOpen={setOpened} />
-        )}
-      </Section>
+      {error ? (
+        <div className="msg">Failed to load: {error}</div>
+      ) : !data ? (
+        <div className="msg">Loading…</div>
+      ) : data.length === 0 ? (
+        <div className="msg">No playlists on your account yet.</div>
+      ) : (
+        <CardGrid items={data} onOpen={setOpened} />
+      )}
     </div>
   )
 }
 
-// Signed out: the local "Watch later" list. Signed in: that list plus account playlists, which open in place.
+// Account playlists, which open in place.
 // `active` is false while an overlay (details, player, sign-in) owns the Back key.
 export function Playlists({ onOpen, active = true }: { onOpen: (i: Item) => void; active?: boolean }) {
-  if (!useAuth().signedIn) return <LocalPlaylists onOpen={onOpen} />
+  if (!useAuth().signedIn) return <SignInNotice what="playlists" />
   return <SignedInPlaylists active={active} onOpen={onOpen} />
 }
 
-function LocalPlaylists({ onOpen }: { onOpen: (i: Item) => void }) {
-  return <Grid items={useWatchlist()} empty={WATCHLIST_EMPTY} onOpen={onOpen} />
+// Centred in the middle of the screen: a heading and a hint.
+function Notice({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="signin-notice">
+      <h2>{title}</h2>
+      <p>{hint}</p>
+    </div>
+  )
 }
 
 export function SignInNotice({ what }: { what: string }) {
-  return <div className="msg top">Sign in to see your {what}. Press the account button to sign in.</div>
+  return <Notice title={`Sign in to see your ${what}.`} hint="Press the account button to sign in." />
 }

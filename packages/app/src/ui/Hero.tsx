@@ -4,6 +4,7 @@ import { playClip } from '../player/mseClip'
 import { getPreviewClip, type PreviewClip } from '../yt/client'
 import type { Item } from '../yt/types'
 import { isViewCount } from './cardSub'
+import { DURATION, spokenDuration } from './MetaLabels'
 import { ArrowLeft, ArrowRight, BookmarkIcon, ClockIcon, PlayIcon, UploadIcon } from './icons'
 
 const ROTATE_MS = 15000
@@ -53,6 +54,9 @@ export function CoverPreview({ videoId, leaving }: { videoId: string; leaving: b
   return <video ref={el} className={`hero-preview${ready && !leaving ? ' on' : ''}`} muted playsInline />
 }
 
+// Label order: channel, duration, upload date, anything else.
+const rank = (m: string, author?: string) => (m === author ? 0 : DURATION.test(m) ? 1 : /\bago\b/i.test(m) ? 2 : 3)
+
 function Slide({ item, cls, leaving, onPlay }: { item: Item; cls: string; leaving: boolean; onPlay: (i: Item) => void }) {
   const watchlist = useWatchlist()
   const saved = watchlist.some((i) => i.id === item.id)
@@ -73,6 +77,7 @@ function Slide({ item, cls, leaving, onPlay }: { item: Item; cls: string; leavin
         <div className="hero-meta">
           {[item.author, ...(item.meta ?? '').split(' · ')]
             .filter((m): m is string => !!m && !isViewCount(m))
+            .sort((a, b) => rank(a, item.author) - rank(b, item.author))
             .map((m) =>
               m === item.author ? (
                 <span key={m} className="hero-label channel">
@@ -82,9 +87,9 @@ function Slide({ item, cls, leaving, onPlay }: { item: Item; cls: string; leavin
                 <span key={m} className="hero-label">
                   <UploadIcon /> {m}
                 </span>
-              ) : /^\d+(:\d{2}){1,2}$/.test(m) ? (
+              ) : DURATION.test(m) ? (
                 <span key={m} className="hero-label">
-                  <ClockIcon /> {m}
+                  <ClockIcon /> {spokenDuration(m)}
                 </span>
               ) : (
                 <span key={m}>{m}</span>

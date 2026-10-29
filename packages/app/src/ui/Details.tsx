@@ -9,6 +9,7 @@ import { CoverPreview } from './Hero'
 import { DURATION, MetaLabels } from './MetaLabels'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
+import { Ink, RowsSkeleton } from './Skeleton'
 import { useRowSnap } from './useRowSnap'
 
 function Meta({ text }: { text: string }) {
@@ -17,11 +18,6 @@ function Meta({ text }: { text: string }) {
       <MetaLabels text={text} spoken />
     </span>
   )
-}
-
-// Hidden text that takes the exact space of the real text and shows as a skeleton block, so nothing shifts when the content arrives.
-function Ink({ children }: { children: string }) {
-  return <span className="skel-ink">{children}</span>
 }
 
 // Same markup and classes as the loaded screen, with placeholders in place of the content, shown until the whole screen can appear at once.
@@ -49,48 +45,6 @@ function TextSkeleton({ title, author, meta }: { title: string; author: string; 
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function RowsSkeleton({ author }: { author: string }) {
-  return (
-    <div className="skel-ghost" aria-hidden>
-      {[{ title: author ? `More from ${author}` : 'More from this channel', labels: true }, { title: 'Related videos', labels: false }].map((r) => (
-        <section key={r.title} className="row">
-          <div className="row-head">
-            <h2>
-              <Ink>{r.title}</Ink>
-            </h2>
-          </div>
-          <div className="row-items">
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="card">
-                <div className="skel card-img" />
-                {r.labels ? (
-                  <>
-                    <span className="card-title one-line">
-                      <Ink>Placeholder video title</Ink>
-                    </span>
-                    <span className="card-labels">
-                      <MetaLabels text="12:34 · 3 weeks ago" />
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="card-title">
-                      <Ink>Placeholder related video title that runs onto a second line</Ink>
-                    </span>
-                    <span className="card-sub">
-                      <Ink>Channel name · 1.2M views</Ink>
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
     </div>
   )
 }
@@ -178,6 +132,12 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
   return (
     <div className="details" data-screen>
       <div className="details-backdrop" aria-hidden>
+        <img
+          className="hero-img"
+          src={`https://i.ytimg.com/vi/${item.id}/maxresdefault.jpg`}
+          onError={(e) => ((e.target as HTMLImageElement).src = item.thumb)}
+          alt=""
+        />
         <div className="hero-shade" />
       </div>
       <div className="details-hero">
@@ -234,7 +194,7 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
         </div>
       </div>
       <div className="details-rows" ref={rows}>
-        {!ready && <RowsSkeleton author={item.author ?? ''} />}
+        {!ready && <RowsSkeleton rows={[{ title: item.author ? `More from ${item.author}` : 'More from this channel', labels: true }, { title: 'Related videos', labels: false }]} />}
         {failed && <div className="msg">Could not load more about this video.</div>}
         {ready && channel && more.length > 0 && (
           <RowView title={`More from ${channel.name}`} cards={more.map((i) => ({ item: i }))} arrows={false} loop labels onOpen={onOpen} />

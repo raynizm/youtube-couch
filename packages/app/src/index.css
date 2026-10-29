@@ -44,7 +44,7 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .hero { position: relative; width: 100%; height: 100%; overflow: hidden; }
 /* Home: the cover stays put and previews the focused video; only the lists below scroll. */
 /* The cover fills the screen behind the rows: a 16:9 picture anchored to the top edge, rows scrolling over its lower part. */
-.home { --rows-h: 36vh; --fade-top: 3rem; position: relative; height: 100%; display: flex; flex-direction: column; }
+.home { --rows-h: 32vh; --fade-top: 3rem; position: relative; height: 100%; display: flex; flex-direction: column; }
 .home > .hero { position: absolute; inset: 0; height: 100%; z-index: 0; }
 /* Dark panel behind the rows, strongest at the bottom. It is separate from the scroller so the scroller's own edge fade does not thin it out. */
 .home::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: var(--rows-h); z-index: 1; pointer-events: none; background: linear-gradient(to top, var(--bg) 20%, rgba(10, 10, 10, .84) 40%, rgba(10, 10, 10, .5) 60%, rgba(10, 10, 10, .16) 80%, rgba(10, 10, 10, 0)); }
@@ -124,6 +124,13 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 /* Cards */
 .card { flex: none; width: 15rem; display: flex; flex-direction: column; align-items: stretch; gap: 0; }
 .card-img { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 0.5rem; overflow: hidden; background: var(--card); transition: transform .15s; }
+.card-wrap { display: block; }
+/* A playlist's thumbnail sits on two shorter layers peeking out above it, like a stack of cards. */
+.card-stack { position: relative; display: block; padding-top: 0.875rem; }
+.card-stack::before, .card-stack::after { content: ''; position: absolute; top: 0; height: 1rem; border-radius: 0.5rem 0.5rem 0 0; background: rgba(255, 255, 255, .22); }
+.card-stack::before { left: 2rem; right: 2rem; }
+.card-stack::after { top: 0.4375rem; left: 1rem; right: 1rem; background: rgba(255, 255, 255, .4); }
+.card-stack .card-img { z-index: 1; }
 .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card-preview { position: absolute; inset: 0; }
 .card-play { position: absolute; top: 50%; left: 50%; width: 3.5rem; height: 3.5rem; margin: -1.75rem 0 0 -1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(0, 0, 0, .5); border: 0.0625rem solid rgba(255, 255, 255, .25); backdrop-filter: blur(0.5rem); -webkit-backdrop-filter: blur(0.5rem); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; pointer-events: none; }
@@ -172,6 +179,9 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .details-rows::-webkit-scrollbar { display: none; }
 /* One row per page. A fade-height gap follows each row, so a row that has scrolled out is wholly above the visible edge. */
 .details-rows .row { height: calc(100% - var(--fade-top)); margin-bottom: var(--fade-top); }
+/* Subscriptions reuse the details rows, below the nav; rows size to their content so several show at once. */
+.subs { position: relative; height: 100%; display: flex; flex-direction: column; padding-top: 6.5rem; }
+.subs-rows .row { height: auto; margin-bottom: 2rem; }
 .details-mid { --thumb-w: 48rem; position: relative; z-index: 1; flex: 0 1 auto; align-self: stretch; margin: auto -3rem 0; min-height: 0; display: flex; align-items: flex-start; justify-content: center; gap: 1.75rem; padding: 2.5rem 3rem; background: rgba(10, 10, 10, .6); backdrop-filter: blur(0.75rem); -webkit-backdrop-filter: blur(0.75rem); }
 .details-topbar { position: absolute; top: 1.5rem; left: 2rem; z-index: 2; display: flex; gap: 0.625rem; }
 .details-topbar .player-back { position: static; }
@@ -181,6 +191,7 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .details-topbar .round svg { width: 1.375rem; height: 1.375rem; }
 /* Always 16:9 and pinned to the top edge; on a taller screen the canvas shows below it. */
 .details-backdrop { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 16 / 9; overflow: hidden; }
+.details-backdrop .hero-img { filter: blur(1.5rem) brightness(.35); transform: scale(1.1); }
 .details-backdrop { background: radial-gradient(ellipse at 20% 0%, #3a4fa0 0%, #29307a 40%, #140f33 100%); }
 .details-thumb { position: relative; flex: none; width: var(--thumb-w); aspect-ratio: 16 / 9; overflow: hidden; box-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, .6); }
 .details-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -230,6 +241,10 @@ main { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #
 .player-toast { position: absolute; bottom: 8.125rem; right: 2rem; background: #e5e5e5; color: #0a0a0a; padding: 0.625rem 1.125rem; border-radius: 62.4375rem; font-size: var(--t-title); font-weight: 600; }
 
 .top { padding-top: 7.5rem; }
+.signin-notice { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 0 3rem; text-align: center; pointer-events: none; }
+.signin-notice h2 { margin: 0; font-size: var(--t-head); font-weight: 700; color: var(--text); }
+.signin-notice p { margin: 0; font-size: var(--t-body); color: var(--muted); }
+.msg.center { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 3rem; pointer-events: none; }
 .msg.top { padding-top: 12.5rem; }
 .nav-pill svg { width: 1.5rem; height: 1.5rem; }
 .hero-arrow svg { width: 2.25rem; height: 2.25rem; }
