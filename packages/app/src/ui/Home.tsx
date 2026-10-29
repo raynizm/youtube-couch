@@ -3,7 +3,7 @@ import { curatedHome } from '../yt/client'
 import type { Item } from '../yt/types'
 import { useAuth } from '../yt/auth'
 import { Hero } from './Hero'
-import { useFeed } from './useFeed'
+import { MIN_SKELETON_MS, useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
 import { newestFirst } from '../yt/age'
 import { RowView } from './RowView'
@@ -38,7 +38,7 @@ function HomeSkeleton() {
 export function Home({ onOpen, onPlay }: { onOpen: (i: Item) => void; onPlay: (i: Item) => void }) {
   const { signedIn, feedKey } = useAuth()
   const fetchRows = useCallback(() => curatedHome(signedIn), [signedIn])
-  const { data: rows, error } = useFeed(fetchRows, feedKey)
+  const { data: rows, error } = useFeed(fetchRows, feedKey, MIN_SKELETON_MS)
 
   // The cover previews whichever card is hovered or focused; short delay so scrolling past does not flicker it.
   const [focused, setFocused] = useState<Item>()

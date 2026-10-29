@@ -9,7 +9,7 @@ import { ArrowLeft, HomeIcon, SearchIcon } from './icons'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { GridSkeleton, RowsSkeleton } from './Skeleton'
-import { useFeed } from './useFeed'
+import { MIN_SKELETON_MS, useFeed } from './useFeed'
 import { useRowSnap } from './useRowSnap'
 
 function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: (i: Item) => void }) {
@@ -24,7 +24,7 @@ function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: 
 // Loading / error / grid for an account feed.
 export function FeedGrid({ fetcher, empty, onOpen }: { fetcher: () => Promise<Item[]>; empty: string; onOpen: (i: Item) => void }) {
   const { feedKey } = useAuth()
-  const { data, error } = useFeed(fetcher, feedKey)
+  const { data, error } = useFeed(fetcher, feedKey, MIN_SKELETON_MS)
   if (error) return <div className="msg">Failed to load: {error}</div>
   if (!data)
     return (
@@ -80,7 +80,7 @@ export function Subscriptions({ onOpen }: { onOpen: (i: Item) => void }) {
 }
 
 function SubscriptionRows({ onOpen }: { onOpen: (i: Item) => void }) {
-  const { data, error } = useFeed(subscriptionRows, useAuth().feedKey)
+  const { data, error } = useFeed(subscriptionRows, useAuth().feedKey, MIN_SKELETON_MS)
   if (error) return <div className="msg center">Failed to load: {error}</div>
   if (!data) return <ChannelRowsSkeleton />
   return <ChannelRows rows={data} onOpen={onOpen} />
@@ -136,7 +136,7 @@ function PlaylistVideos({ playlist, active, onBack, onOpen, onTab }: { playlist:
 }
 
 function SignedInPlaylists({ active, onOpen, onTab }: { active: boolean; onOpen: (i: Item) => void; onTab: (t: Tab) => void }) {
-  const { data, error } = useFeed(accountPlaylists, useAuth().feedKey)
+  const { data, error } = useFeed(accountPlaylists, useAuth().feedKey, MIN_SKELETON_MS)
   const [opened, setOpened] = useState<Item>()
   const back = useCallback(() => setOpened(undefined), [])
 

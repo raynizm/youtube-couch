@@ -11,6 +11,7 @@ import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { Ink, RowsSkeleton } from './Skeleton'
 import { useRowSnap } from './useRowSnap'
+import { MIN_SKELETON_MS, useElapsed } from './useFeed'
 
 function Meta({ text }: { text: string }) {
   return (
@@ -87,7 +88,8 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
   }, [item.id])
 
   // Nothing but the skeleton shows until the details and the channel row are in; a failed request shows what we have.
-  const ready = failed || (!!data && moreDone)
+  const waited = useElapsed(MIN_SKELETON_MS, item.id)
+  const ready = waited && (failed || (!!data && moreDone))
 
   useRowSnap(rows, ready)
 
