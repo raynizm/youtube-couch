@@ -68,11 +68,6 @@ export function Details({ item, active, onPlay, onOpen, onClose, onTab }: Props)
 
   useEffect(() => {
     let alive = true
-    setData(undefined)
-    setFailed(false)
-    setMore([])
-    setMoreDone(false)
-    rows.current?.scrollTo({ top: 0 })
     getDetails(item.id).then(
       (d) => {
         if (!alive) return

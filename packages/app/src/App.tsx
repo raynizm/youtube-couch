@@ -70,7 +70,7 @@ export default function App() {
         {tab === 'history' && <History onOpen={open} />}
         {tab === 'search' && <Search onOpen={open} />}
       </main>
-      {details && <Details item={details} active={!playing && !modal} onPlay={play} onOpen={open} onClose={back} onTab={goTab} />}
+      {details && <Details key={details.id} item={details} active={!playing && !modal} onPlay={play} onOpen={open} onClose={back} onTab={goTab} />}
       {signingIn && <SignIn onClose={closeSignIn} onDone={signedIn} />}
       {choosing && auth.signedIn && <ProfilePicker silent={choosing === 'login'} onClose={closeChoosing} />}
       {menu && auth.signedIn && <AccountMenu name={auth.name} onSwitch={switchAccount} onSignOut={confirmSignOut} onClose={closeMenu} />}
