@@ -1,0 +1,17 @@
+{
+  "name": "bluefin-tizenbrew",
+  "version": "0.1.0",
+  "description": "Bluefin, a TV-first YouTube client, as a TizenBrew application module.",
+  "packageType": "app",
+  "appName": "Bluefin",
+  "appPath": "dist/index.html",
+  "serviceFile": "service.js",
+  "keys": [],
+  "files": ["dist", "service.js"],
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "git+https://github.com/raynizm/project-bluefin.git" },
+  "keywords": ["tizenbrew", "youtube", "tv", "samsung", "tizen"]
+}

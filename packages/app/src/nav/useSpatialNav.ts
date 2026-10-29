@@ -14,12 +14,13 @@ export function useSpatialNav(enabled = true) {
       if (!dir) return
       const active = document.activeElement as HTMLElement | null
       if (active?.tagName === 'INPUT' && (dir === 'left' || dir === 'right')) return
-      // An open modal owns the D-pad: only its own controls are reachable.
-      const scope = document.querySelector('[data-modal]') ?? document
+      // An open modal owns the D-pad, then a full-screen page (Details) covering the tabs: only its own controls are reachable.
+      const modals = document.querySelectorAll('[data-modal]')
+      const scope = modals[modals.length - 1] ?? document.querySelector('[data-screen]') ?? document
       const els = Array.from(scope.querySelectorAll<HTMLElement>('[data-focusable]'))
       if (!els.length) return
       e.preventDefault()
-      if (!active || !els.includes(active)) return els[0].focus()
+      if (!active || !els.includes(active)) return (scope.querySelector<HTMLElement>('[data-default]') ?? els[0]).focus()
       const boxes = els.map((el, i) => {
         const r = el.getBoundingClientRect()
         return { id: String(i), x: r.left, y: r.top, w: r.width, h: r.height }

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { useSpatialNav } from './nav/useSpatialNav'
 import { Player } from './player/Player'
 import { AccountMenu } from './ui/AccountMenu'
+import { Clock } from './ui/Clock'
 import { Details } from './ui/Details'
 import { Home } from './ui/Home'
 import { History, Playlists, Subscriptions } from './ui/Library'
@@ -73,6 +74,7 @@ export default function App() {
       {signingIn && <SignIn onClose={closeSignIn} onDone={signedIn} />}
       {choosing && auth.signedIn && <ProfilePicker silent={choosing === 'login'} onClose={closeChoosing} />}
       {menu && auth.signedIn && <AccountMenu name={auth.name} onSwitch={switchAccount} onSignOut={confirmSignOut} onClose={closeMenu} />}
+      {!playing && (details || tab === 'home') && <Clock />}
       {playing && <Player item={playing} onClose={close} />}
     </div>
   )

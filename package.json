@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bun run --filter @bluefin/app dev",
     "build:web": "bun run --filter @bluefin/app build",
+    "build:tizen": "bun run --filter bluefin-tizenbrew build",
     "test": "bun run --filter @bluefin/app test"
   }
 }

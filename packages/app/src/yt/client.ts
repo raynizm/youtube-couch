@@ -8,7 +8,9 @@ import { scopeBearer, scopeProfile, toProxyHeaders } from './proxyHeaders'
 import { allItems, parseGrid, parseHome, parseSubscribedChannels, parseSubscriptions } from './tv'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
-const proxied = (url: string) => `/__proxy?url=${encodeURIComponent(url)}`
+// Dev and preview servers proxy on the page's own origin; the TizenBrew build points at the proxy its service runs on the TV.
+const PROXY_BASE: string = import.meta.env.VITE_PROXY_BASE ?? ''
+const proxied = (url: string) => `${PROXY_BASE}/__proxy?url=${encodeURIComponent(url)}`
 
 // Browser fetch cannot set User-Agent or reach YouTube cross-origin, so route through the proxy.
 async function proxyFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -413,8 +415,6 @@ export async function subscriptionsFeed(): Promise<Item[]> {
   return parseSubscriptions(await tvBrowse('FEsubscriptions'))
 }
 
-export async function accountPlaylists(): Promise<Item[]> {
-  return parseGrid(await tvBrowse('FEplaylist_aggregation')).filter((i) => i.kind === 'playlist')
 const SUB_ROW_SIZE = 20
 const SUB_FETCH_PARALLEL = 6
 
@@ -462,6 +462,8 @@ export async function subscriptionRows(): Promise<Row[]> {
   return found.length ? found : groupByAuthor(parseSubscriptions(data))
 }
 
+export async function accountPlaylists(): Promise<Item[]> {
+  return parseGrid(await tvBrowse('FEplaylist_aggregation')).filter((i) => i.kind === 'playlist')
 }
 
 export async function accountHistory(): Promise<Item[]> {
