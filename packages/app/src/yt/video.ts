@@ -55,10 +55,14 @@ export async function getStream(videoId: string): Promise<Stream> {
 
 const MAX_HEIGHT = 1080
 
+/** Clients to ask for separate tracks, best first. Neither URL type needs the player script's cipher. */
+const ADAPTIVE_CLIENTS = ['ANDROID_VR', 'IOS'] as const
+
 type Format = {
   url?: string
   mime_type: string
   height?: number
+  content_length?: number
   average_bitrate?: number
   bitrate: number
   has_video: boolean
@@ -77,24 +81,45 @@ function toTrack(f: Format): MediaTrack | undefined {
 const bitrate = (f: Format) => f.average_bitrate ?? f.bitrate
 
 /**
- * The best H.264 video (up to MAX_HEIGHT) and AAC audio as separate tracks. The IOS client is used because its adaptive URLs need no
- * cipher handling and work with a locally generated session. Undefined when either track is missing, so the caller falls back to getStream.
+ * Whether the file can be read to its last byte. YouTube answers 403 to some clients once they read past the first few
+ * megabytes (it wants a proof-of-origin token they cannot give), which would cut playback off partway through.
  */
-export async function getAdaptiveStream(videoId: string): Promise<AdaptiveStream | undefined> {
+async function readsToEnd(f: Format): Promise<boolean> {
+  if (!f.url || !f.content_length) return true
+  try {
+    await fetchRange(f.url, f.content_length - 1, f.content_length - 1)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function adaptiveVia(videoId: string, client: (typeof ADAPTIVE_CLIENTS)[number]): Promise<AdaptiveStream | undefined> {
   const yt = await getSession()
-  const info = await yt.getBasicInfo(videoId, { client: 'IOS' })
+  const info = await yt.getBasicInfo(videoId, { client })
   const formats = (info.streaming_data?.adaptive_formats ?? []) as unknown as Format[]
   const video = formats
-    .filter((f) => f.has_video && !f.has_audio && f.mime_type.includes('avc1') && (f.height ?? 0) <= MAX_HEIGHT)
-    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || bitrate(b) - bitrate(a))
-    .flatMap((f) => toTrack(f) ?? [])[0]
+    .filter((f) => f.has_video && !f.has_audio && f.mime_type.includes('avc1') && (f.height ?? 0) <= MAX_HEIGHT && toTrack(f))
+    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || bitrate(b) - bitrate(a))[0]
   const audio = formats
-    .filter((f) => f.has_audio && !f.has_video && f.mime_type.includes('mp4a'))
-    .sort((a, b) => bitrate(b) - bitrate(a))
-    .flatMap((f) => toTrack(f) ?? [])[0]
+    .filter((f) => f.has_audio && !f.has_video && f.mime_type.includes('mp4a') && toTrack(f))
+    .sort((a, b) => bitrate(b) - bitrate(a))[0]
   const duration = info.basic_info.duration
   if (!video || !audio || !duration) return undefined
-  return { video, audio, duration, title: info.basic_info.title ?? '', author: info.basic_info.author }
+  if (!(await Promise.all([readsToEnd(video), readsToEnd(audio)])).every(Boolean)) return undefined
+  return { video: toTrack(video)!, audio: toTrack(audio)!, duration, title: info.basic_info.title ?? '', author: info.basic_info.author }
+}
+
+/**
+ * The best H.264 video (up to MAX_HEIGHT) and AAC audio as separate tracks, from the first client whose files can be read in full.
+ * Undefined when none can, so the caller falls back to getStream.
+ */
+export async function getAdaptiveStream(videoId: string): Promise<AdaptiveStream | undefined> {
+  for (const client of ADAPTIVE_CLIENTS) {
+    const stream = await adaptiveVia(videoId, client).catch(() => undefined)
+    if (stream) return stream
+  }
+  return undefined
 }
 
 /** Subtitle tracks as WebVTT blob URLs. Tries ANDROID first, then WEB, since either may omit captions. */

@@ -4,7 +4,9 @@ import { type Fragment, fragmentAt, parseSidx } from './sidx'
 
 /** Seconds of media kept buffered ahead of the playhead, and behind it before old data is dropped. */
 const AHEAD_S = 30
-const BEHIND_S = 30
+const BEHIND_S = 10
+/** The least a buffer is asked to hold ahead, however small the device's memory limit turns out to be. */
+const MIN_AHEAD_S = 4
 const RETRIES = 2
 /** A playhead this close to a buffered range counts as inside it. */
 const EDGE_S = 0.1
@@ -15,6 +17,8 @@ type Loader = {
   frags: Fragment[]
   /** The fragment to fetch next. */
   next: number
+  /** Seconds to keep buffered ahead; lowered when the device's memory limit for this buffer is reached. */
+  ahead: number
   /** Bumped on a seek out of the buffer, so answers to requests made before it are dropped. */
   gen: number
   ctl: AbortController
@@ -87,15 +91,22 @@ export function attachAdaptive(video: HTMLVideoElement, stream: AdaptiveStream, 
     if (l.sb.buffered.length && before > l.sb.buffered.start(0)) return operate(l, () => l.sb.remove(0, before))
   }
 
-  const append = async (l: Loader, data: ArrayBuffer) => {
+  /** Adds the data to the buffer. False when the device's memory limit for it is reached: nothing was added, and the buffer is not asked to hold more than it does now. */
+  const append = async (l: Loader, data: ArrayBuffer): Promise<boolean> => {
     // Drop what is well behind the playhead before it fills the buffer.
     await evict(l, video.currentTime - BEHIND_S)
-    try {
-      await operate(l, () => l.sb.appendBuffer(data))
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'QuotaExceededError')) throw e
-      await evict(l, video.currentTime - 5)
-      await operate(l, () => l.sb.appendBuffer(data))
+    for (let again = false; ; again = true) {
+      try {
+        await operate(l, () => l.sb.appendBuffer(data))
+        return true
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === 'QuotaExceededError')) throw e
+        if (again) {
+          l.ahead = Math.max(MIN_AHEAD_S, bufferedAhead(l))
+          return false
+        }
+        await evict(l, video.currentTime - 1)
+      }
     }
   }
 
@@ -103,7 +114,7 @@ export function attachAdaptive(video: HTMLVideoElement, stream: AdaptiveStream, 
     if (l.busy || dead) return
     l.busy = true
     try {
-      while (!dead && l.next < l.frags.length && bufferedAhead(l) < AHEAD_S) {
+      while (!dead && l.next < l.frags.length && bufferedAhead(l) < l.ahead) {
         const gen = l.gen
         const f = l.frags[l.next]
         let data: ArrayBuffer
@@ -115,7 +126,7 @@ export function attachAdaptive(video: HTMLVideoElement, stream: AdaptiveStream, 
         }
         if (dead) return
         if (gen !== l.gen) continue
-        await append(l, data)
+        if (!(await append(l, data))) break
         if (gen === l.gen) l.next++
       }
       // Everything is in: close the stream so the player knows where the end is.
@@ -143,7 +154,7 @@ export function attachAdaptive(video: HTMLVideoElement, stream: AdaptiveStream, 
 
   /** Adds a buffer for the track, reads its init segment and index, and appends the init segment. */
   const open = async (track: MediaTrack): Promise<Loader> => {
-    const l: Loader = { track, sb: ms.addSourceBuffer(track.mime), frags: [], next: 0, gen: 0, ctl: new AbortController(), busy: false }
+    const l: Loader = { track, sb: ms.addSourceBuffer(track.mime), frags: [], next: 0, ahead: AHEAD_S, gen: 0, ctl: new AbortController(), busy: false }
     const head = await get(l, 0, track.index.end)
     l.frags = parseSidx(head.slice(track.index.start, track.index.end + 1), track.index.end + 1)
     await operate(l, () => l.sb.appendBuffer(head.slice(0, track.init.end + 1)))

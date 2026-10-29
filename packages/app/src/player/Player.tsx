@@ -64,7 +64,8 @@ export function Player({ item, onClose }: Props) {
   }, [videoId])
 
   // Falls back to the combined stream, which plays through the element's own src.
-  const fallBack = () => {
+  const fallBack = (e?: Error) => {
+    if (e) console.warn('Adaptive playback failed, using the combined stream:', e)
     setAdaptive(undefined)
     getStream(videoId).then(setStream, (e) => setError(String(e.message ?? e)))
   }
@@ -140,7 +141,7 @@ export function Player({ item, onClose }: Props) {
       {!error && !ready && <div className="player-msg">Loading…</div>}
       {ready && (
         <>
-          <video ref={video} src={stream?.url} autoPlay onClick={toggle} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={() => saveProgress({ ...item, title: item.title || title }, 1, 1)} onLoadedMetadata={onLoaded} onTimeUpdate={onTimeUpdate} onError={() => (adaptive ? fallBack() : setError('Playback failed'))}>
+          <video ref={video} src={stream?.url} autoPlay onClick={toggle} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={() => saveProgress({ ...item, title: item.title || title }, 1, 1)} onLoadedMetadata={onLoaded} onTimeUpdate={onTimeUpdate} onError={() => (adaptive ? fallBack(new Error(video.current?.error?.message || 'Video element error')) : setError('Playback failed'))}>
             {captions.map((c) => (
               <track key={c.lang + c.label} kind="subtitles" label={c.label} srcLang={c.lang} src={c.url} />
             ))}
