@@ -2,50 +2,84 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { isBack } from '../nav/useSpatialNav'
 import { useProgress } from '../store'
 import { useAuth } from '../yt/auth'
-import { accountHistory, accountPlaylists, HISTORY_SIZE, getPlaylistVideos, subscriptionRows } from '../yt/client'
+import { accountPlaylists, getPlaylistVideos, HISTORY_SIZE, historyFeed, subscriptionRows } from '../yt/client'
 import type { Item, Row } from '../yt/types'
 import { Card } from './Card'
 import { ArrowLeft, HomeIcon, SearchIcon } from './icons'
 import type { Tab } from './Nav'
 import { RowView } from './RowView'
 import { GridSkeleton, RowsSkeleton } from './Skeleton'
-import { MIN_SKELETON_MS, useFeed } from './useFeed'
+import { MIN_SKELETON_MS, useFeed, wait } from './useFeed'
+import { useLastRowLoader } from './useLastRowLoader'
 import { useRowSnap } from './useRowSnap'
 
-function Grid({ items, empty, onOpen }: { items: Item[]; empty: string; onOpen: (i: Item) => void }) {
+type Feed = { done: boolean; next: (count: number) => Promise<Item[]> }
+
+/** A feed over a list already in hand, handed out in pages. */
+const listFeed = (all: Item[]): Feed => {
+  let at = 0
+  return {
+    get done() {
+      return at >= all.length
+    },
+    next: async (count) => all.slice(at, (at += count)),
+  }
+}
+
+// Watch history: the latest HISTORY_SIZE videos, then two more rows whenever focus reaches the last row.
+function HistoryGrid({ make, feedKey, empty, onOpen }: { make: () => Feed; feedKey: unknown; empty: string; onOpen: (i: Item) => void }) {
+  const [items, setItems] = useState<Item[]>()
+  const [error, setError] = useState<string>()
+  const feed = useRef<Feed>(undefined)
+
+  useEffect(() => {
+    const f = (feed.current = make())
+    setItems(undefined)
+    setError(undefined)
+    // Hold the skeleton for at least MIN_SKELETON_MS, even when the answer is fast.
+    Promise.all([f.next(HISTORY_SIZE), wait(MIN_SKELETON_MS)]).then(
+      ([r]) => feed.current === f && setItems(r),
+      (e) => feed.current === f && setError(String(e?.message ?? e)),
+    )
+  }, [feedKey])
+
+  const { loadingMore, onFocus } = useLastRowLoader(
+    items?.length ?? 0,
+    () => !!feed.current && !feed.current.done,
+    async (count) => {
+      const f = feed.current
+      const more = (await f?.next(count)) ?? []
+      if (feed.current === f) setItems((cur) => [...(cur ?? []), ...more])
+    },
+  )
+
+  if (error) return <div className="msg">Failed to load: {error}</div>
   return (
-    <div className="screen padded top lit-grid history">
-      {items.length === 0 && <div className="msg">{empty}</div>}
-      <CardGrid items={items} labels onOpen={onOpen} />
+    <div className="screen padded top lit-grid history" onFocus={onFocus}>
+      {!items ? (
+        <GridSkeleton labels />
+      ) : (
+        <>
+          {items.length === 0 && <div className="msg">{empty}</div>}
+          <CardGrid items={items} labels onOpen={onOpen} />
+          {loadingMore > 0 && <GridSkeleton labels count={loadingMore} />}
+        </>
+      )}
     </div>
   )
 }
 
-// Loading / error / grid for an account feed.
-export function FeedGrid({ fetcher, empty, onOpen }: { fetcher: () => Promise<Item[]>; empty: string; onOpen: (i: Item) => void }) {
-  const { feedKey } = useAuth()
-  const { data, error } = useFeed(fetcher, feedKey, MIN_SKELETON_MS)
-  if (error) return <div className="msg">Failed to load: {error}</div>
-  if (!data)
-    return (
-      <div className="screen padded top lit-grid history">
-        <GridSkeleton labels />
-      </div>
-    )
-  return <Grid items={data} empty={empty} onOpen={onOpen} />
-}
-
-function LocalHistory({ onOpen }: { onOpen: (i: Item) => void }) {
-  const items = Object.values(useProgress())
-    .sort((a, b) => b.ts - a.ts)
-    .slice(0, HISTORY_SIZE)
-    .map((h) => h.item)
-  return <Grid items={items} empty="No watch history yet." onOpen={onOpen} />
-}
-
 export function History({ onOpen }: { onOpen: (i: Item) => void }) {
-  if (!useAuth().signedIn) return <LocalHistory onOpen={onOpen} />
-  return <FeedGrid fetcher={accountHistory} empty="No watch history yet." onOpen={onOpen} />
+  const { signedIn, feedKey } = useAuth()
+  // Signed out: the videos played in this app, as they stood when the screen opened.
+  const progress = useProgress()
+  const [local] = useState(() =>
+    Object.values(progress)
+      .sort((a, b) => b.ts - a.ts)
+      .map((h) => h.item),
+  )
+  const make = useCallback(() => (signedIn ? historyFeed() : listFeed(local)), [signedIn, local])
+  return <HistoryGrid make={make} feedKey={`${signedIn}:${feedKey}`} empty="No watch history yet." onOpen={onOpen} />
 }
 
 // Same layout as the loaded screen, with placeholder rows until the channels are in.

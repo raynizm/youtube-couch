@@ -5,7 +5,7 @@ import { newestFirst } from './age'
 import { clearAuth, loadCredentials, loadProfileId, saveAccount, saveCredentials, saveProfileId, type Account } from './auth'
 import { parseProfiles, type Profile } from './profiles'
 import { scopeBearer, scopeProfile, toProxyHeaders } from './proxyHeaders'
-import { allItems, parseGrid, parseHome, parseSubscribedChannels, parseSubscriptions } from './tv'
+import { allItems, continuationToken, parseGrid, parseHome, parseSubscribedChannels, parseSubscriptions } from './tv'
 import type { Caption, Details, Item, Row, Stream } from './types'
 
 // Dev and preview servers proxy on the page's own origin; the TizenBrew build points at the proxy its service runs on the TV.
@@ -271,8 +271,32 @@ type SearchFilters = Parameters<Innertube['search']>[1]
 export async function search(query: string, filters?: SearchFilters): Promise<Item[]> {
   const yt = await getSession()
   const res = await yt.search(query, filters)
-  const nodes = stripAds(stripShorts((res.results ?? []) as Raw[]))
-  return flatten(nodes).filter((i) => i.kind === 'video')
+  return searchVideos(res)
+}
+
+const searchVideos = (res: { results?: unknown }): Item[] => flatten(stripAds(stripShorts((res.results ?? []) as Raw[]))).filter((i) => i.kind === 'video')
+
+const MAX_SEARCH_PAGES = 4
+
+/** Result pages of one query, read on demand: each `next` call returns new videos until `count` are in or the pages run out. */
+export function searchFeed(query: string) {
+  let res: Awaited<ReturnType<Innertube['search']>> | undefined
+  let more = true
+  const seen = new Set<string>()
+  return {
+    get done() {
+      return !more
+    },
+    async next(count: number): Promise<Item[]> {
+      const out: Item[] = []
+      for (let page = 0; out.length < count && more && page < MAX_SEARCH_PAGES; page++) {
+        res = res ? await res.getContinuation() : await (await getSession()).search(query)
+        more = res.has_continuation
+        for (const i of searchVideos(res)) if (!seen.has(i.id)) (seen.add(i.id), out.push(i))
+      }
+      return out
+    },
+  }
 }
 
 const HOME_TOPICS = ['Trending today', 'Music', 'Gaming', 'Live now', 'News', 'Science and tech', 'Cooking', 'Movie trailers']
@@ -400,9 +424,10 @@ export async function fetchRange(url: string, start: number, end: number): Promi
   return res.arrayBuffer()
 }
 
-const tvBrowse = async (browseId: string): Promise<unknown> => {
+const tvBrowse = async (args: string | { continuation: string }): Promise<unknown> => {
   const yt = await getSession()
-  const res = (await yt.actions.execute('/browse', { browseId, client: 'TV' } as any)) as unknown as Raw
+  const body = typeof args === 'string' ? { browseId: args } : args
+  const res = (await yt.actions.execute('/browse', { ...body, client: 'TV' } as any)) as unknown as Raw
   return res?.data
 }
 
@@ -468,11 +493,40 @@ export async function accountPlaylists(): Promise<Item[]> {
 
 export const HISTORY_SIZE = 50
 
-export async function accountHistory(): Promise<Item[]> {
-  return parseGrid(await tvBrowse('FEhistory'))
-    .filter((i) => i.kind === 'video')
-    .slice(0, HISTORY_SIZE)
+const HISTORY_MAX_PAGES = 5
+
+/** The account's watch history, read on demand: each `next` call returns the following videos, following continuation pages as needed. */
+export function historyFeed() {
+  let data: unknown
+  let started = false
+  let more = true
+  let buffer: Item[] = []
+  const seen = new Set<string>()
+  return {
+    get done() {
+      return !more && buffer.length === 0
+    },
+    async next(count: number): Promise<Item[]> {
+      for (let page = 0; buffer.length < count && more && page < HISTORY_MAX_PAGES; page++) {
+        const token = started ? continuationToken(data) : undefined
+        if (started && !token) {
+          more = false
+          break
+        }
+        data = await tvBrowse(started ? { continuation: token! } : 'FEhistory')
+        const items = started ? allItems(data) : parseGrid(data)
+        started = true
+        const fresh = items.filter((i) => i.kind === 'video' && !seen.has(i.id))
+        for (const i of fresh) seen.add(i.id)
+        buffer = [...buffer, ...fresh]
+        if (!fresh.length) more = false
+      }
+      return buffer.splice(0, count)
+    },
+  }
 }
+
+export const accountHistory = (): Promise<Item[]> => historyFeed().next(HISTORY_SIZE)
 
 /** Playlist browse shape was not captured, so every tile in the response is collected. */
 export async function getPlaylistVideos(id: string): Promise<Item[]> {

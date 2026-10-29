@@ -146,6 +146,19 @@ function findBrowseId(node: unknown, depth = 0): string | undefined {
   return undefined
 }
 
+/** The token that fetches the next page of a browse response, if it has one (the exact node varies, so both known shapes are tried). */
+export function continuationToken(node: unknown, depth = 0): string | undefined {
+  if (!node || typeof node !== 'object' || depth > MAX_DEPTH) return undefined
+  const n = node as Raw
+  const direct = n.continuationCommand?.token ?? n.nextContinuationData?.continuation
+  if (typeof direct === 'string' && direct) return direct
+  for (const v of Object.values(n)) {
+    const found = continuationToken(v, depth + 1)
+    if (found) return found
+  }
+  return undefined
+}
+
 /** FEhistory / FEplaylist_aggregation -> grid tiles. */
 export function parseGrid(data: unknown): Item[] {
   const grid = (data as Raw)?.contents?.tvBrowseRenderer?.content?.tvSurfaceContentRenderer?.content?.gridRenderer

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allItems, collectTiles, parseGrid, parseHome, parseSubscriptions, textOf, tileToItem } from './tv'
+import { allItems, collectTiles, continuationToken, parseGrid, parseHome, parseSubscriptions, textOf, tileToItem } from './tv'
 
 const line = (...texts: any[]) => ({ lineRenderer: { items: texts.map((t) => ({ lineItemRenderer: { text: t } })) } })
 const videoTile = (id: string, over: any = {}) => ({
@@ -159,5 +159,14 @@ describe('parseGrid', () => {
 describe('allItems', () => {
   it('dedupes', () => {
     expect(allItems([videoTile('aaaaaaaaaaa'), videoTile('aaaaaaaaaaa')])).toHaveLength(1)
+  })
+})
+
+describe('continuationToken', () => {
+  it('finds both known shapes and tolerates none', () => {
+    expect(continuationToken({ a: [{ continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token: 'T1' } } } }] })).toBe('T1')
+    expect(continuationToken({ continuations: [{ nextContinuationData: { continuation: 'T2' } }] })).toBe('T2')
+    expect(continuationToken({ a: 1 })).toBeUndefined()
+    expect(continuationToken(null)).toBeUndefined()
   })
 })

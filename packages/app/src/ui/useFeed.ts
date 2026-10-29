@@ -5,6 +5,8 @@ type State<T> = { key: unknown; data?: T; error?: string }
 /** Skeletons stay up at least this long, so a fast response does not flash them. */
 export const MIN_SKELETON_MS = 1000
 
+export const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 /** False until `ms` after mount or after `key` changed. */
 export function useElapsed(ms: number, key: unknown): boolean {
   const [elapsed, setElapsed] = useState<{ key: unknown } | undefined>()
@@ -23,9 +25,9 @@ export function useFeed<T>(fetcher: () => Promise<T>, key: unknown, minMs = 0): 
 
   useEffect(() => {
     let cancelled = false
-    const wait = new Promise((r) => setTimeout(r, minMs))
+    const minWait = wait(minMs)
     fetcher().then(
-      (data) => wait.then(() => !cancelled && setState({ key, data })),
+      (data) => minWait.then(() => !cancelled && setState({ key, data })),
       (e) => !cancelled && setState({ key, error: String(e?.message ?? e) }),
     )
     return () => {

@@ -49,10 +49,10 @@ export function RowsSkeleton({ rows, spoken = false }: { rows: { title: string; 
 
 
 /** Placeholder cards for a grid screen; `stack` draws the stacked-thumbnail look of playlists, `labels` the channel and duration row of video cards. */
-export function GridSkeleton({ stack = false, labels = false }: { stack?: boolean; labels?: boolean }) {
+export function GridSkeleton({ stack = false, labels = false, count = 12 }: { stack?: boolean; labels?: boolean; count?: number }) {
   return (
     <div className="grid skel-ghost" aria-hidden>
-      {Array.from({ length: 12 }, (_, i) => (
+      {Array.from({ length: count }, (_, i) => (
         <div key={i} className="card">
           <span className={stack ? 'card-stack' : 'card-wrap'}>
             <div className="skel card-img" />

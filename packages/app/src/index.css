@@ -146,7 +146,7 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .card-play { position: absolute; top: 50%; left: 50%; width: 3.5rem; height: 3.5rem; margin: -1.75rem 0 0 -1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(0, 0, 0, .5); border: 0.0625rem solid rgba(255, 255, 255, .25); backdrop-filter: blur(0.5rem); -webkit-backdrop-filter: blur(0.5rem); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; pointer-events: none; }
 .card-play svg { width: 1.5rem; height: 1.5rem; margin-left: 0.1875rem; }
 .card:hover .card-play, .card:focus .card-play { opacity: 1; transform: none; }
-:is(.lit-grid, .subs-rows, .home-rows) .card-play { display: none; }
+.card-play { display: none; }
 /* History, playlist videos and Subscriptions show the duration as plain text, without a pill; Subscriptions does the same for the upload date. */
 :is(.history, .subs-rows) .card-labels .hero-label:not(.upload), .subs-rows .card-labels .upload { background: none; padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .card-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 0.25rem; background: #ffffff33; }
@@ -174,12 +174,18 @@ main:has(.lit-grid) { scroll-behavior: smooth; }
 .grid .card { width: auto; }
 
 /* Search */
-.searchbar { display: flex; align-items: center; gap: 0.625rem; max-width: 42rem; margin: 6rem auto 1.5rem; padding: 0 1.25rem; height: 2.75rem; border: 0.0625rem solid var(--border); border-radius: 62.4375rem; background: var(--card); color: var(--muted); }
+.searchbar { display: flex; align-items: center; gap: 0.625rem; max-width: 60rem; margin: 6rem auto 1.5rem; padding: 0 1.25rem; height: 2.75rem; border: 0.0625rem solid var(--border); border-radius: 62.4375rem; background: var(--card); color: var(--muted); }
 .searchbar:focus-within { border-color: var(--ring); box-shadow: 0 0 0 0.1875rem var(--ring); }
 .searchbar input::placeholder { color: var(--muted); opacity: 1; }
 .searchbar input { flex: 1; background: none; border: 0; color: var(--text); font: inherit; font-size: var(--t-title); outline: none; }
+/* The search bar stays put; only the tiles or results below it scroll. */
+.search { height: 100%; display: flex; flex-direction: column; padding-bottom: 0; }
+.search-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; margin: 0 -3rem; padding: 0.5rem 3rem 4rem; }
+.search-body { scroll-behavior: smooth; }
+.search .card { scroll-margin: 1rem 0 6rem; }
+.search-body::-webkit-scrollbar { display: none; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(16.25rem, 1fr)); gap: 1rem; }
-.tile { height: 10.25rem; padding: 1rem 1.25rem; border: 0.0625rem solid var(--border); border-radius: 0.5rem; align-items: flex-end; font-size: var(--t-head); font-weight: 700; color: var(--text); background: var(--card); transition: transform .15s; }
+.tile { height: 10.25rem; padding: 1rem 1.25rem; border: 0.0625rem solid var(--border); align-items: flex-end; font-size: var(--t-head); font-weight: 700; color: var(--text); background: linear-gradient(135deg, hsl(var(--hue) 55% 36%), hsl(calc(var(--hue) + 40) 60% 14%)); transition: transform .15s; }
 .tile:focus { box-shadow: 0 0 0 0.1875rem var(--ring); transform: scale(1.03); }
 
 /* Details: same split as Home — the cover stays put, only the rows below scroll. */
