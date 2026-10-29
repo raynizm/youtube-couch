@@ -440,7 +440,7 @@ export async function subscriptionsFeed(): Promise<Item[]> {
   return parseSubscriptions(await tvBrowse('FEsubscriptions'))
 }
 
-const SUB_ROW_SIZE = 20
+const SUB_ROW_SIZE = 10
 const SUB_FETCH_PARALLEL = 6
 
 /** Items grouped into one row per author, alphabetical, newest first inside a row. */
@@ -448,7 +448,7 @@ function groupByAuthor(items: Item[]): Row[] {
   const by = new Map<string, Item[]>()
   for (const i of items) by.set(i.author ?? 'Other', [...(by.get(i.author ?? 'Other') ?? []), i])
   return [...by]
-    .map(([title, list]) => ({ title, items: newestFirst(list) }))
+    .map(([title, list]) => ({ title, items: newestFirst(list).slice(0, SUB_ROW_SIZE) }))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
 }
 
@@ -464,27 +464,56 @@ async function webSubscribedChannels(): Promise<{ id: string; name: string }[]> 
   }
 }
 
+/** Runs `fn` over `items`, at most SUB_FETCH_PARALLEL at a time; results keep the order of `items`. */
+async function inParallel<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++
+      out[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SUB_FETCH_PARALLEL, items.length) }, worker))
+  return out
+}
+
+/** The channel behind each author in the feed, found through one of their videos. Authors whose video cannot be looked up are left out. */
+async function channelsOfFeed(items: Item[]): Promise<{ id: string; name: string }[]> {
+  const yt = await getSession()
+  const byAuthor = new Map<string, Item>()
+  for (const i of items) if (i.author && !byAuthor.has(i.author)) byAuthor.set(i.author, i)
+  const found = await inParallel([...byAuthor], async ([name, video]) => {
+    for (const client of ['ANDROID', 'WEB'] as const) {
+      try {
+        const id = (await yt.getBasicInfo(video.id, { client })).basic_info.channel_id
+        if (id) return { id, name }
+      } catch {
+        // try the next client
+      }
+    }
+    return undefined
+  })
+  return found.filter((c): c is { id: string; name: string } => !!c)
+}
+
 /**
- * One row per subscribed channel with its latest uploads. When the response lists no channels
- * (or none load), falls back to the subscriptions feed grouped by channel.
+ * One row per subscribed channel with its latest uploads. The channels come from the subscriptions page, else from the web
+ * client's channel list, else from the authors in the feed. If no channel loads, the feed grouped by author stands in.
  */
 export async function subscriptionRows(): Promise<Row[]> {
   const data = await tvBrowse('FEsubscriptions')
+  const feed = parseSubscriptions(data)
   let channels = parseSubscribedChannels(data)
   if (!channels.length) channels = await webSubscribedChannels()
+  if (!channels.length) channels = await channelsOfFeed(feed)
   console.info(`subscriptions: ${channels.length} channels`)
-  const rows: (Row | undefined)[] = new Array(channels.length)
-  let next = 0
-  const worker = async () => {
-    while (next < channels.length) {
-      const i = next++
-      const items = await getChannelVideos(channels[i].id).then((v) => v.slice(0, SUB_ROW_SIZE), () => [])
-      if (items.length) rows[i] = { title: channels[i].name, items }
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(SUB_FETCH_PARALLEL, channels.length) }, worker))
+  const rows = await inParallel(channels, async (c): Promise<Row | undefined> => {
+    const items = await getChannelVideos(c.id).then((v) => v.slice(0, SUB_ROW_SIZE), () => [])
+    return items.length ? { title: c.name, items } : undefined
+  })
   const found = rows.filter((r): r is Row => !!r).sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
-  return found.length ? found : groupByAuthor(parseSubscriptions(data))
+  return found.length ? found : groupByAuthor(feed)
 }
 
 export async function accountPlaylists(): Promise<Item[]> {

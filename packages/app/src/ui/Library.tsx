@@ -101,7 +101,7 @@ function ChannelRows({ rows, onOpen }: { rows: Row[]; onOpen: (i: Item) => void 
     <div className="screen subs">
       <div className="details-rows subs-rows" ref={box}>
         {rows.map((r) => (
-          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} loop labels spoken onOpen={onOpen} />
+          <RowView key={r.title} title={r.title} cards={r.items.map((item) => ({ item }))} arrows={false} labels spoken onOpen={onOpen} />
         ))}
       </div>
     </div>

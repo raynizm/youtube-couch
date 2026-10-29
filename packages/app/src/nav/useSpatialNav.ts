@@ -29,9 +29,12 @@ export function useSpatialNav(enabled = true) {
       const from = boxes[els.indexOf(active)]
       // Down from the nav bar lands on the cover's prev/next arrow on the same side before it reaches the rows.
       const arrowIds = active.closest('.nav') && dir === 'down' ? els.flatMap((el, i) => (el.classList.contains('hero-arrow') ? [String(i)] : [])) : []
+      // Left and right stay inside a row: at its first or last card nothing happens, rather than jumping to another row.
+      const strip = active.closest('.row-items')
+      const sideways = !!strip && (dir === 'left' || dir === 'right')
       const next = arrowIds.length
         ? pickSameSide(from.x + from.w / 2, window.innerWidth / 2, boxes.filter((b) => arrowIds.includes(b.id)))
-        : pickNext(from, boxes, dir)
+        : pickNext(from, sideways ? boxes.filter((b) => strip?.contains(els[Number(b.id)])) : boxes, dir)
       if (next !== undefined) {
         const el = els[Number(next)]
         const strip = el.closest<HTMLElement>('.row-items')
