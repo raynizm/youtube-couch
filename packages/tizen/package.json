@@ -1,17 +1,28 @@
 {
   "name": "youtube-couch-tizen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "YouTube Couch, a TV-first YouTube client, as a TizenBrew application module.",
   "packageType": "app",
   "appName": "YouTube Couch",
   "appPath": "dist/index.html",
   "serviceFile": "service.js",
   "keys": [],
-  "files": ["dist", "service.js"],
+  "files": [
+    "dist",
+    "service.js"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs"
   },
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/raynizm/youtube-couch.git" },
-  "keywords": ["youtube", "samsung", "tizen", "tizenbrew"]
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raynizm/youtube-couch.git"
+  },
+  "keywords": [
+    "youtube",
+    "samsung",
+    "tizen",
+    "tizenbrew"
+  ]
 }
