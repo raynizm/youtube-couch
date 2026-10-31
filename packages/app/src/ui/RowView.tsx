@@ -22,7 +22,7 @@ type RowProps = {
   spoken?: boolean
 }
 
-// Looping needs a set of cards wider than the screen (8 cards at 16rem each is 128rem, a screen is 120rem).
+// Looping needs a set of cards wider than the screen (8 cards at 16rem each is 128rem, a screen is 100rem).
 const MIN_LOOP_CARDS = 8
 const SETTLE_MS = 150
 
