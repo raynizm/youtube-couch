@@ -1,6 +1,6 @@
 {
   "name": "youtube-couch-tizen",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "YouTube Couch, a TV-first YouTube client, as a TizenBrew application module.",
   "packageType": "app",
   "appName": "YouTube Couch",
