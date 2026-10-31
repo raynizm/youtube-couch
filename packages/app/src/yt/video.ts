@@ -98,6 +98,7 @@ async function adaptiveVia(videoId: string, client: (typeof ADAPTIVE_CLIENTS)[nu
   const yt = await getSession()
   const info = await yt.getBasicInfo(videoId, { client })
   const formats = (info.streaming_data?.adaptive_formats ?? []) as unknown as Format[]
+  const why = (reason: string) => console.info(`adaptive ${client}: ${reason}`, { status: info.playability_status?.status, formats: formats.length, withUrl: formats.filter((f) => f.url).length })
   const video = formats
     .filter((f) => f.has_video && !f.has_audio && f.mime_type.includes('avc1') && (f.height ?? 0) <= MAX_HEIGHT && toTrack(f))
     .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || bitrate(b) - bitrate(a))[0]
@@ -105,8 +106,8 @@ async function adaptiveVia(videoId: string, client: (typeof ADAPTIVE_CLIENTS)[nu
     .filter((f) => f.has_audio && !f.has_video && f.mime_type.includes('mp4a') && toTrack(f))
     .sort((a, b) => bitrate(b) - bitrate(a))[0]
   const duration = info.basic_info.duration
-  if (!video || !audio || !duration) return undefined
-  if (!(await Promise.all([readsToEnd(video), readsToEnd(audio)])).every(Boolean)) return undefined
+  if (!video || !audio || !duration) return why(`no usable ${!video ? 'video' : !audio ? 'audio' : 'duration'}`)
+  if (!(await Promise.all([readsToEnd(video), readsToEnd(audio)])).every(Boolean)) return why('files cannot be read to the end')
   return { video: toTrack(video)!, audio: toTrack(audio)!, duration, title: info.basic_info.title ?? '', author: info.basic_info.author }
 }
 
@@ -116,7 +117,7 @@ async function adaptiveVia(videoId: string, client: (typeof ADAPTIVE_CLIENTS)[nu
  */
 export async function getAdaptiveStream(videoId: string): Promise<AdaptiveStream | undefined> {
   for (const client of ADAPTIVE_CLIENTS) {
-    const stream = await adaptiveVia(videoId, client).catch(() => undefined)
+    const stream = await adaptiveVia(videoId, client).catch((e) => console.info(`adaptive ${client}: failed`, e))
     if (stream) return stream
   }
   return undefined

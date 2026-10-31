@@ -1,0 +1,42 @@
+# npm defaults
+.git
+.svn
+.hg
+CVS
+.lock-wscript
+.wafpickle-N
+.*.swp
+.DS_Store
+._*
+npm-debug.log
+.npmrc
+config.gypi
+node_modules
+package-lock.json
+*.orig
+
+# Dependencies (bun)
+bun.lock
+
+# Test / tool caches
+.vitest-cache
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+
+# Local env
+.env
+.env.*
+*.local
+
+# Claude Code / superpowers local state
+.claude/
+.superpowers/
+.playwright-mcp/
+
+# Editor / OS
+.vscode/
+.idea
+*.sw?
