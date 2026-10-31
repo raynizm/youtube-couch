@@ -23,5 +23,3 @@ jobs:
       - run: bun run build:tizen
       - run: npm publish --provenance --access public
         working-directory: packages/tizen
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
