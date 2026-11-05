@@ -16,7 +16,7 @@
     "qrcode-generator": "^2.0.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "youtubei.js": "^18.1.0"
+    "youtubei.js": "^18.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -24,10 +24,10 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-legacy": "^8.2.3",
     "@vitejs/plugin-react": "^6.1.1",
-    "oxlint": "^1.81.0",
+    "oxlint": "^1.90.0",
     "terser": "^5.51.2",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }
 }
