@@ -19,7 +19,7 @@
     "youtubei.js": "^18.3.0"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-legacy": "^8.2.4",
